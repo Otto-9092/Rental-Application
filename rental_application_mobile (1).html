@@ -1,0 +1,2254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mobile-Friendly Rental Application</title>
+    <!-- Tailwind CSS for screen styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        primary: {
+                            50: '#f0f9ff',
+                            100: '#e0f2fe',
+                            500: '#0284c7',
+                            600: '#025a90',
+                            700: '#0369a1',
+                            900: '#0c4a6e',
+                        },
+                        corteva: {
+                            green: '#008345',
+                            blue: '#005f9e',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        /* Signature Canvas styling */
+        #sig-canvas {
+            border: 2px dashed #cbd5e1;
+            border-radius: 0.5rem;
+            cursor: crosshair;
+            background-color: #f8fafc;
+            touch-action: none; /* Prevents scrolling while signing */
+        }
+        
+        /* Custom styled Yes/No buttons */
+        .q-btn-label {
+            cursor: pointer;
+        }
+        .q-btn {
+            display: inline-block;
+            padding: 0.5rem 1.25rem;
+            font-weight: 600;
+            font-size: 0.875rem;
+            border: 1px solid #cbd5e1;
+            border-radius: 0.5rem;
+            background-color: #f8fafc;
+            color: #475569;
+            transition: all 0.2s;
+            text-align: center;
+            min-width: 4rem;
+        }
+        input:checked + .q-btn {
+            background-color: #0284c7;
+            color: #ffffff;
+            border-color: #0284c7;
+            box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+        }
+
+        /* Custom screen-only vs print-only styles */
+        @media screen {
+            .print-only {
+                display: none !important;
+            }
+            body {
+                background-color: #f1f5f9;
+            }
+        }
+
+        @media print {
+            .screen-only {
+                display: none !important;
+            }
+            .print-only {
+                display: block !important;
+            }
+            body {
+                background-color: #ffffff;
+                color: #000000;
+                font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+                font-size: 10px;
+                line-height: 1.2;
+            }
+            .page-break {
+                page-break-before: always;
+                break-before: page;
+            }
+            /* Table-like grid layout for print */
+            .print-grid {
+                display: grid;
+                border-top: 1px solid #000;
+                border-left: 1px solid #000;
+            }
+            .print-cell {
+                border-right: 1px solid #000;
+                border-bottom: 1px solid #000;
+                padding: 3px 5px;
+                box-sizing: border-box;
+            }
+            .print-header {
+                background-color: #1e293b !important;
+                color: #ffffff !important;
+                font-weight: bold;
+                text-transform: uppercase;
+                font-size: 11px;
+                padding: 4px 6px;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            .print-sub-header {
+                background-color: #f1f5f9 !important;
+                font-weight: bold;
+                padding: 3px 5px;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            .label-print {
+                font-size: 8px;
+                font-weight: bold;
+                color: #475569;
+                text-transform: uppercase;
+                display: block;
+                margin-bottom: 1px;
+            }
+            .val-print {
+                font-size: 10px;
+                color: #000;
+                min-height: 12px;
+                word-break: break-all;
+            }
+            /* Adjust checkboxes in print */
+            .print-checkbox {
+                display: inline-block;
+                width: 10px;
+                height: 10px;
+                border: 1px solid #000;
+                margin-right: 3px;
+                vertical-align: middle;
+                text-align: center;
+                line-height: 8px;
+                font-size: 8px;
+                font-weight: bold;
+            }
+        }
+    </style>
+</head>
+<body class="text-gray-800 antialiased font-sans">
+
+    <!-- ==================== SCREEN INTERFACE (MOBILE WIZARD) ==================== -->
+    <div class="screen-only min-h-screen flex flex-col pb-24 md:pb-0">
+        <!-- Top Sticky Header -->
+        <header class="bg-primary-900 text-white shadow-md sticky top-0 z-50 px-4 py-3 flex items-center justify-between">
+            <div class="flex items-center space-x-2">
+                <svg class="w-6 h-6 text-sky-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
+                </svg>
+                <h1 class="text-base font-bold tracking-wide">Rental Application Portal</h1>
+            </div>
+            <span id="wizard-progress-badge" class="bg-primary-700 text-sky-100 text-xs font-semibold px-2.5 py-1 rounded-full">Step 1 of 8</span>
+        </header>
+
+        <!-- Main Form Wizard Container -->
+        <main class="flex-1 max-w-xl w-full mx-auto p-4 md:py-8">
+            
+            <!-- Progress Bar Tracker -->
+            <div class="mb-6">
+                <div class="flex justify-between text-xs text-gray-500 mb-2">
+                    <span id="progress-step-name">Personal Information</span>
+                    <span id="progress-percent">12% Complete</span>
+                </div>
+                <div class="w-full bg-gray-200 rounded-full h-2">
+                    <div id="progress-bar" class="bg-sky-600 h-2 rounded-full transition-all duration-300" style="width: 12.5%"></div>
+                </div>
+            </div>
+
+            <!-- Form Element -->
+            <form id="app-form" onsubmit="event.preventDefault();" class="space-y-6">
+
+                <!-- STEP 1: WELCOME & START -->
+                <section id="step-0" class="wizard-step bg-white p-6 rounded-xl shadow-sm border border-gray-100 space-y-4">
+                    <div class="text-center space-y-2">
+                        <span class="inline-block bg-primary-100 text-primary-700 p-3 rounded-full">
+                            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+                            </svg>
+                        </span>
+                        <h2 class="text-xl font-extrabold text-gray-950">Mobile Rental Application</h2>
+                        <p class="text-gray-500 text-sm">Fill out this 2-page application easily on your phone. Progress is saved automatically as you go!</p>
+                    </div>
+
+                    <div class="border-t border-gray-100 pt-4 space-y-3 text-sm text-gray-600">
+                        <div class="flex items-start space-x-3">
+                            <svg class="w-5 h-5 text-emerald-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                            <span><strong>No zoom required:</strong> Designed for standard mobile screens.</span>
+                        </div>
+                        <div class="flex items-start space-x-3">
+                            <svg class="w-5 h-5 text-emerald-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                            <span><strong>Autosave:</strong> Close and come back any time without losing answers.</span>
+                        </div>
+                        <div class="flex items-start space-x-3">
+                            <svg class="w-5 h-5 text-emerald-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                            <span><strong>Touch Sign:</strong> Draw your signature directly with your finger.</span>
+                        </div>
+                        <div class="flex items-start space-x-3">
+                            <svg class="w-5 h-5 text-emerald-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                            <span><strong>Save as PDF:</strong> Export a standard, beautifully formatted 2-page PDF ready for the landlord.</span>
+                        </div>
+                    </div>
+
+                    <div class="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs text-amber-800">
+                        <strong>Notice:</strong> Every occupant over 18 must complete a separate application. Complete all sections as accurately as possible.
+                    </div>
+
+                    <button type="button" onclick="nextStep()" class="w-full bg-sky-600 hover:bg-sky-700 text-white font-bold py-3 px-4 rounded-lg shadow transition-colors flex items-center justify-center space-x-2 text-base">
+                        <span>Get Started</span>
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                    </button>
+                </section>
+
+
+                <!-- STEP 2: PERSONAL DETAILS -->
+                <section id="step-1" class="wizard-step bg-white p-6 rounded-xl shadow-sm border border-gray-100 space-y-5 hidden">
+                    <h3 class="text-lg font-bold text-gray-900 border-b pb-2">1. Personal Information</h3>
+                    
+                    <div class="grid grid-cols-1 gap-4">
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700">First Name <span class="text-red-500">*</span></label>
+                            <input type="text" id="p_first_name" required class="w-full mt-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 bg-gray-50 text-base" placeholder="John">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700">Middle Name</label>
+                            <input type="text" id="p_middle_name" class="w-full mt-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 bg-gray-50 text-base">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700">Last Name <span class="text-red-500">*</span></label>
+                            <input type="text" id="p_last_name" required class="w-full mt-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 bg-gray-50 text-base" placeholder="Doe">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700">Social Security Number (S.S.#) <span class="text-red-500">*</span></label>
+                            <input type="text" id="p_ssn" required class="w-full mt-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 bg-gray-50 text-base" placeholder="XXX-XX-XXXX" inputmode="numeric">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700">Date of Birth <span class="text-red-500">*</span></label>
+                            <input type="date" id="p_dob" required class="w-full mt-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 bg-gray-50 text-base">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700">Drivers License # <span class="text-red-500">*</span></label>
+                            <input type="text" id="p_dl_num" required class="w-full mt-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 bg-gray-50 text-base">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700">DL State <span class="text-red-500">*</span></label>
+                            <input type="text" id="p_dl_state" required class="w-full mt-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 bg-gray-50 text-base" placeholder="TX">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700">Marital Status</label>
+                            <select id="p_marital_status" onchange="toggleMaritalDate()" class="w-full mt-1 px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-base">
+                                <option value="Single">Single</option>
+                                <option value="Married">Married</option>
+                                <option value="Divorced">Divorced</option>
+                            </select>
+                        </div>
+                        <div id="marital_date_container" class="hidden">
+                            <label id="marital_date_label" class="block text-sm font-semibold text-gray-700">Date Status Began</label>
+                            <input type="date" id="p_marital_date" class="w-full mt-1 px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-base">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700">Primary Phone <span class="text-red-500">*</span></label>
+                            <div class="flex mt-1 space-x-2">
+                                <input type="tel" id="p_phone1" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 bg-gray-50 text-base" placeholder="(555) 555-5555">
+                                <select id="p_phone1_type" class="border border-gray-300 rounded-lg bg-gray-50 text-sm px-2">
+                                    <option value="Cell">Cell</option>
+                                    <option value="Home">Home</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700">Secondary Phone</label>
+                            <div class="flex mt-1 space-x-2">
+                                <input type="tel" id="p_phone2" class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-base" placeholder="(555) 555-5555">
+                                <select id="p_phone2_type" class="border border-gray-300 rounded-lg bg-gray-50 text-sm px-2">
+                                    <option value="Home">Home</option>
+                                    <option value="Work">Work</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700">Extension</label>
+                            <input type="text" id="p_phone2_ext" class="w-full mt-1 px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-base">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700">Email Address <span class="text-red-500">*</span></label>
+                            <input type="email" id="p_email" required class="w-full mt-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 bg-gray-50 text-base" placeholder="you@example.com">
+                        </div>
+                    </div>
+                </section>
+
+
+                <!-- STEP 3: PRESENT RESIDENTIAL ADDRESS -->
+                <section id="step-2" class="wizard-step bg-white p-6 rounded-xl shadow-sm border border-gray-100 space-y-5 hidden">
+                    <h3 class="text-lg font-bold text-gray-900 border-b pb-2">Present Residential History</h3>
+                    
+                    <div class="grid grid-cols-1 gap-4">
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700">Present Home Address <span class="text-red-500">*</span></label>
+                            <input type="text" id="r1_address" required class="w-full mt-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 bg-gray-50 text-base" placeholder="123 Main St, Apt 4">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700">City, State, Zip <span class="text-red-500">*</span></label>
+                            <input type="text" id="r1_city_state_zip" required class="w-full mt-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 bg-gray-50 text-base" placeholder="Austin, TX 78701">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700">Length of Time Lived Here <span class="text-red-500">*</span></label>
+                            <input type="text" id="r1_length" required class="w-full mt-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 bg-gray-50 text-base" placeholder="e.g. 2 years">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700">Amount of Rent ($) <span class="text-red-500">*</span></label>
+                            <input type="number" id="r1_rent" required class="w-full mt-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 bg-gray-50 text-base" placeholder="1200" inputmode="numeric">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700">Is your present rent up to date? <span class="text-red-500">*</span></label>
+                            <div class="flex mt-2 space-x-6">
+                                <label class="inline-flex items-center text-lg">
+                                    <input type="radio" name="r1_up_to_date" value="Yes" required class="w-5 h-5 text-sky-600 focus:ring-sky-500">
+                                    <span class="ml-2">Yes</span>
+                                </label>
+                                <label class="inline-flex items-center text-lg">
+                                    <input type="radio" name="r1_up_to_date" value="No" class="w-5 h-5 text-sky-600 focus:ring-sky-500">
+                                    <span class="ml-2">No</span>
+                                </label>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700">Present Landlord Name <span class="text-red-500">*</span></label>
+                            <input type="text" id="r1_landlord" required class="w-full mt-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 bg-gray-50 text-base">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700">Landlord Phone <span class="text-red-500">*</span></label>
+                            <input type="tel" id="r1_landlord_phone" required class="w-full mt-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 bg-gray-50 text-base" placeholder="(555) 555-5555">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700">Reason for Leaving <span class="text-red-500">*</span></label>
+                            <textarea id="r1_leaving_reason" required class="w-full mt-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-sky-500 focus:border-sky-500 bg-gray-50 text-base" rows="2" placeholder="e.g. Job transfer, closer to school"></textarea>
+                        </div>
+                    </div>
+                </section>
+
+
+                <!-- STEP 4: PREVIOUS RESIDENTIAL ADDRESSES -->
+                <section id="step-3" class="wizard-step bg-white p-6 rounded-xl shadow-sm border border-gray-100 space-y-6 hidden">
+                    <div class="flex items-center justify-between border-b pb-2">
+                        <h3 class="text-lg font-bold text-gray-900">Previous Residential History</h3>
+                        <label class="inline-flex items-center text-sm text-gray-600">
+                            <input type="checkbox" id="skip_prev_addresses" onchange="togglePreviousAddresses()" class="w-4 h-4 rounded text-sky-600">
+                            <span class="ml-2">Lived here 5+ yrs (Skip previous)</span>
+                        </label>
+                    </div>
+                    
+                    <div id="previous_addresses_container" class="space-y-6">
+                        <!-- PREVIOUS ADDRESS 1 -->
+                        <div class="bg-slate-50 p-4 rounded-lg border border-slate-200 space-y-4">
+                            <h4 class="text-sm font-extrabold text-slate-700 tracking-wider uppercase">Previous Address 1</h4>
+                            <div class="grid grid-cols-1 gap-3">
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-700">Previous Home Address</label>
+                                    <input type="text" id="r2_address" class="w-full mt-1 px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-base">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-700">City, State, Zip</label>
+                                    <input type="text" id="r2_city_state_zip" class="w-full mt-1 px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-base">
+                                </div>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <div>
+                                        <label class="block text-xs font-semibold text-gray-700">Rent ($)</label>
+                                        <input type="number" id="r2_rent" class="w-full mt-1 px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-base" inputmode="numeric">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-semibold text-gray-700">Length of Time</label>
+                                        <input type="text" id="r2_length" class="w-full mt-1 px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-base">
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-700">Was rent up to date?</label>
+                                    <div class="flex mt-1 space-x-4">
+                                        <label class="inline-flex items-center">
+                                            <input type="radio" name="r2_up_to_date" value="Yes" class="w-4 h-4 text-sky-600">
+                                            <span class="ml-2 text-sm">Yes</span>
+                                        </label>
+                                        <label class="inline-flex items-center">
+                                            <input type="radio" name="r2_up_to_date" value="No" class="w-4 h-4 text-sky-600">
+                                            <span class="ml-2 text-sm">No</span>
+                                        </label>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-700">Previous Landlord Name</label>
+                                    <input type="text" id="r2_landlord" class="w-full mt-1 px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-base">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-700">Landlord Phone</label>
+                                    <input type="tel" id="r2_landlord_phone" class="w-full mt-1 px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-base" placeholder="(555) 555-5555">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-700">Reason for Leaving</label>
+                                    <input type="text" id="r2_leaving_reason" class="w-full mt-1 px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-base">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- PREVIOUS ADDRESS 2 -->
+                        <div class="bg-slate-50 p-4 rounded-lg border border-slate-200 space-y-4">
+                            <h4 class="text-sm font-extrabold text-slate-700 tracking-wider uppercase">Previous Address 2</h4>
+                            <div class="grid grid-cols-1 gap-3">
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-700">Next Previous Home Address</label>
+                                    <input type="text" id="r3_address" class="w-full mt-1 px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-base">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-700">City, State, Zip</label>
+                                    <input type="text" id="r3_city_state_zip" class="w-full mt-1 px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-base">
+                                </div>
+                                <div class="grid grid-cols-2 gap-2">
+                                    <div>
+                                        <label class="block text-xs font-semibold text-gray-700">Rent ($)</label>
+                                        <input type="number" id="r3_rent" class="w-full mt-1 px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-base" inputmode="numeric">
+                                    </div>
+                                    <div>
+                                        <label class="block text-xs font-semibold text-gray-700">Length of Time</label>
+                                        <input type="text" id="r3_length" class="w-full mt-1 px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-base">
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-700">Was rent up to date?</label>
+                                    <div class="flex mt-1 space-x-4">
+                                        <label class="inline-flex items-center">
+                                            <input type="radio" name="r3_up_to_date" value="Yes" class="w-4 h-4 text-sky-600">
+                                            <span class="ml-2 text-sm">Yes</span>
+                                        </label>
+                                        <label class="inline-flex items-center">
+                                            <input type="radio" name="r3_up_to_date" value="No" class="w-4 h-4 text-sky-600">
+                                            <span class="ml-2 text-sm">No</span>
+                                        </label>
+                                    </div>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-700">Previous Landlord Name</label>
+                                    <input type="text" id="r3_landlord" class="w-full mt-1 px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-base">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-700">Landlord Phone</label>
+                                    <input type="tel" id="r3_landlord_phone" class="w-full mt-1 px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-base" placeholder="(555) 555-5555">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-700">Reason for Leaving</label>
+                                    <input type="text" id="r3_leaving_reason" class="w-full mt-1 px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-base">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+
+                <!-- STEP 5: PROPOSED OCCUPANTS, PETS & VEHICLES -->
+                <section id="step-4" class="wizard-step bg-white p-6 rounded-xl shadow-sm border border-gray-100 space-y-6 hidden">
+                    <!-- PROPOSED OCCUPANTS -->
+                    <div>
+                        <div class="flex items-center justify-between border-b pb-2 mb-3">
+                            <h3 class="text-base font-bold text-gray-900">Proposed Occupant(s)</h3>
+                            <button type="button" onclick="addOccupantRow()" class="bg-sky-50 text-sky-600 hover:bg-sky-100 px-3 py-1 rounded text-xs font-semibold flex items-center space-x-1 border border-sky-200">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                                <span>Add Occupant</span>
+                            </button>
+                        </div>
+                        <div id="occupants_container" class="space-y-3">
+                            <!-- Dynamic rows will go here -->
+                        </div>
+                    </div>
+
+                    <!-- PROPOSED PETS -->
+                    <div>
+                        <div class="flex items-center justify-between border-b pb-2 mb-3">
+                            <h3 class="text-base font-bold text-gray-900">Proposed Pet(s)</h3>
+                            <button type="button" onclick="addPetRow()" class="bg-sky-50 text-sky-600 hover:bg-sky-100 px-3 py-1 rounded text-xs font-semibold flex items-center space-x-1 border border-sky-200">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                                <span>Add Pet</span>
+                            </button>
+                        </div>
+                        <div id="pets_container" class="space-y-3">
+                            <!-- Dynamic rows will go here -->
+                        </div>
+                        <p id="no_pets_text" class="text-xs text-gray-400 italic mt-1">No pets declared.</p>
+                    </div>
+
+                    <!-- VEHICLE INFORMATION -->
+                    <div>
+                        <div class="flex items-center justify-between border-b pb-2 mb-3">
+                            <h3 class="text-base font-bold text-gray-900">Vehicle(s) Information</h3>
+                            <button type="button" onclick="addVehicleRow()" class="bg-sky-50 text-sky-600 hover:bg-sky-100 px-3 py-1 rounded text-xs font-semibold flex items-center space-x-1 border border-sky-200">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                                <span>Add Vehicle</span>
+                            </button>
+                        </div>
+                        <div id="vehicles_container" class="space-y-3">
+                            <!-- Dynamic rows will go here -->
+                        </div>
+                        <p id="no_vehicles_text" class="text-xs text-gray-400 italic mt-1">No vehicles declared.</p>
+                    </div>
+                </section>
+
+
+                <!-- STEP 6: EMPLOYMENT & INCOME -->
+                <section id="step-5" class="wizard-step bg-white p-6 rounded-xl shadow-sm border border-gray-100 space-y-6 hidden">
+                    <h3 class="text-lg font-bold text-gray-900 border-b pb-2">Employment & Income</h3>
+
+                    <!-- EMPLOYER 1 -->
+                    <div class="bg-slate-50 p-4 rounded-lg border border-slate-200 space-y-3">
+                        <h4 class="text-xs font-extrabold text-slate-700 tracking-wider uppercase">Current Employer 1</h4>
+                        <div class="grid grid-cols-1 gap-3">
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-700">Employer Name</label>
+                                <input type="text" id="emp1_name" class="w-full mt-1 px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-base">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-700">Occupation</label>
+                                <input type="text" id="emp1_occ" class="w-full mt-1 px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-base">
+                            </div>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-700">Hours/Week</label>
+                                    <input type="number" id="emp1_hours" class="w-full mt-1 px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-base" inputmode="numeric">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-700">Years Employed</label>
+                                    <input type="text" id="emp1_years" class="w-full mt-1 px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-base" placeholder="e.g. 3">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-700">Supervisor Name</label>
+                                <input type="text" id="emp1_super" class="w-full mt-1 px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-base">
+                            </div>
+                            <div class="grid grid-cols-3 gap-2">
+                                <div class="col-span-2">
+                                    <label class="block text-xs font-semibold text-gray-700">Supervisor Phone</label>
+                                    <input type="tel" id="emp1_phone" class="w-full mt-1 px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-base" placeholder="(555) 555-5555">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-700">Ext</label>
+                                    <input type="text" id="emp1_ext" class="w-full mt-1 px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-base">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-700">Employer Address, City, State, Zip</label>
+                                <input type="text" id="emp1_address_full" class="w-full mt-1 px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-base">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- EMPLOYER 2 -->
+                    <div class="bg-slate-50 p-4 rounded-lg border border-slate-200 space-y-3">
+                        <div class="flex items-center justify-between">
+                            <h4 class="text-xs font-extrabold text-slate-700 tracking-wider uppercase">Employer 2 / Previous Employer</h4>
+                            <label class="inline-flex items-center text-xs text-gray-500">
+                                <input type="checkbox" id="has_emp2" onchange="toggleEmployer2()" class="w-3.5 h-3.5 rounded text-sky-600">
+                                <span class="ml-1">Add second job</span>
+                            </label>
+                        </div>
+                        <div id="emp2_fields_container" class="grid grid-cols-1 gap-3 hidden">
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-700">Employer Name</label>
+                                <input type="text" id="emp2_name" class="w-full mt-1 px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-base">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-700">Occupation</label>
+                                <input type="text" id="emp2_occ" class="w-full mt-1 px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-base">
+                            </div>
+                            <div class="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-700">Hours/Week</label>
+                                    <input type="number" id="emp2_hours" class="w-full mt-1 px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-base" inputmode="numeric">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-700">Years Employed</label>
+                                    <input type="text" id="emp2_years" class="w-full mt-1 px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-base">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-700">Supervisor Name</label>
+                                <input type="text" id="emp2_super" class="w-full mt-1 px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-base">
+                            </div>
+                            <div class="grid grid-cols-3 gap-2">
+                                <div class="col-span-2">
+                                    <label class="block text-xs font-semibold text-gray-700">Supervisor Phone</label>
+                                    <input type="tel" id="emp2_phone" class="w-full mt-1 px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-base" placeholder="(555) 555-5555">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-semibold text-gray-700">Ext</label>
+                                    <input type="text" id="emp2_ext" class="w-full mt-1 px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-base">
+                                </div>
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-gray-700">Employer Address, City, State, Zip</label>
+                                <input type="text" id="emp2_address_full" class="w-full mt-1 px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-base">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- INCOME ENTRIES -->
+                    <div>
+                        <div class="flex items-center justify-between border-b pb-2 mb-3">
+                            <h3 class="text-base font-bold text-gray-900">Income Details</h3>
+                            <button type="button" onclick="addIncomeRow()" class="bg-sky-50 text-sky-600 hover:bg-sky-100 px-3 py-1 rounded text-xs font-semibold flex items-center space-x-1 border border-sky-200">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                                <span>Add Income Source</span>
+                            </button>
+                        </div>
+                        <div id="income_container" class="space-y-4">
+                            <!-- Dynamic rows will go here -->
+                        </div>
+                    </div>
+                </section>
+
+
+                <!-- STEP 7: FINANCIAL & CREDIT INFORMATION -->
+                <section id="step-6" class="wizard-step bg-white p-6 rounded-xl shadow-sm border border-gray-100 space-y-6 hidden">
+                    <h3 class="text-lg font-bold text-gray-900 border-b pb-2">Credit Card / Financial Information</h3>
+                    <p class="text-xs text-gray-500">Provide balances and monthly payments where applicable. Enter "0" if none.</p>
+
+                    <div class="space-y-4">
+                        <!-- CAR LOAN -->
+                        <div class="border-b pb-4 space-y-2">
+                            <h4 class="text-xs font-extrabold text-gray-700 uppercase">Car Loan / Lien Holder</h4>
+                            <div class="grid grid-cols-1 gap-2">
+                                <input type="text" id="f_car_holder" class="w-full px-3 py-1.5 border border-gray-300 rounded-lg bg-gray-50 text-base" placeholder="Lien Holder Name">
+                                <div class="grid grid-cols-2 gap-2">
+                                    <input type="number" id="f_car_bal" class="w-full px-3 py-1.5 border border-gray-300 rounded-lg bg-gray-50 text-base" placeholder="Balance Owed ($)" inputmode="numeric">
+                                    <input type="number" id="f_car_pmt" class="w-full px-3 py-1.5 border border-gray-300 rounded-lg bg-gray-50 text-base" placeholder="Monthly Payment ($)" inputmode="numeric">
+                                </div>
+                                <input type="tel" id="f_car_phone" class="w-full px-3 py-1.5 border border-gray-300 rounded-lg bg-gray-50 text-base" placeholder="Creditor Phone #">
+                            </div>
+                        </div>
+
+                        <!-- CREDIT CARDS (up to 3) -->
+                        <div class="border-b pb-4 space-y-3">
+                            <h4 class="text-xs font-extrabold text-gray-700 uppercase">Credit Cards</h4>
+                            
+                            <div class="p-3 bg-slate-50 rounded-lg border border-slate-200 space-y-2">
+                                <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Card Company 1</span>
+                                <input type="text" id="f_cc1_co" class="w-full px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-base" placeholder="Card Company">
+                                <div class="grid grid-cols-2 gap-2">
+                                    <input type="number" id="f_cc1_bal" class="w-full px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-base" placeholder="Balance Owed ($)" inputmode="numeric">
+                                    <input type="number" id="f_cc1_pmt" class="w-full px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-base" placeholder="Monthly Payment ($)" inputmode="numeric">
+                                </div>
+                                <input type="tel" id="f_cc1_phone" class="w-full px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-base" placeholder="Creditor Phone #">
+                            </div>
+
+                            <div class="p-3 bg-slate-50 rounded-lg border border-slate-200 space-y-2">
+                                <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Card Company 2</span>
+                                <input type="text" id="f_cc2_co" class="w-full px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-base" placeholder="Card Company">
+                                <div class="grid grid-cols-2 gap-2">
+                                    <input type="number" id="f_cc2_bal" class="w-full px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-base" placeholder="Balance Owed ($)" inputmode="numeric">
+                                    <input type="number" id="f_cc2_pmt" class="w-full px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-base" placeholder="Monthly Payment ($)" inputmode="numeric">
+                                </div>
+                                <input type="tel" id="f_cc2_phone" class="w-full px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-base" placeholder="Creditor Phone #">
+                            </div>
+
+                            <div class="p-3 bg-slate-50 rounded-lg border border-slate-200 space-y-2">
+                                <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Card Company 3</span>
+                                <input type="text" id="f_cc3_co" class="w-full px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-base" placeholder="Card Company">
+                                <div class="grid grid-cols-2 gap-2">
+                                    <input type="number" id="f_cc3_bal" class="w-full px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-base" placeholder="Balance Owed ($)" inputmode="numeric">
+                                    <input type="number" id="f_cc3_pmt" class="w-full px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-base" placeholder="Monthly Payment ($)" inputmode="numeric">
+                                </div>
+                                <input type="tel" id="f_cc3_phone" class="w-full px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-base" placeholder="Creditor Phone #">
+                            </div>
+                        </div>
+
+                        <!-- OTHER CREDIT / CHILD SUPPORT -->
+                        <div class="border-b pb-4 space-y-2">
+                            <h4 class="text-xs font-extrabold text-gray-700 uppercase">Child Support / Other Credit Owed</h4>
+                            <div class="grid grid-cols-1 gap-2">
+                                <div class="grid grid-cols-2 gap-2">
+                                    <input type="number" id="f_support_bal" class="w-full px-3 py-1.5 border border-gray-300 rounded-lg bg-gray-50 text-base" placeholder="Balance Owed ($)" inputmode="numeric">
+                                    <input type="number" id="f_support_pmt" class="w-full px-3 py-1.5 border border-gray-300 rounded-lg bg-gray-50 text-base" placeholder="Monthly Payment ($)" inputmode="numeric">
+                                </div>
+                                <input type="tel" id="f_support_phone" class="w-full px-3 py-1.5 border border-gray-300 rounded-lg bg-gray-50 text-base" placeholder="Creditor Phone #">
+                            </div>
+                        </div>
+
+                        <!-- BANK ACCOUNT -->
+                        <div class="space-y-2">
+                            <h4 class="text-xs font-extrabold text-gray-700 uppercase">Bank Account</h4>
+                            <div class="grid grid-cols-1 gap-2">
+                                <input type="text" id="f_bank_name" class="w-full px-3 py-1.5 border border-gray-300 rounded-lg bg-gray-50 text-base" placeholder="Name of Bank">
+                                <div class="grid grid-cols-2 gap-2">
+                                    <input type="number" id="f_bank_bal" class="w-full px-3 py-1.5 border border-gray-300 rounded-lg bg-gray-50 text-base" placeholder="Current Balance ($)" inputmode="numeric">
+                                    <input type="text" id="f_bank_acct" class="w-full px-3 py-1.5 border border-gray-300 rounded-lg bg-gray-50 text-base" placeholder="Account Number">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+
+                <!-- STEP 8: EMERGENCY CONTACTS & REFERENCES -->
+                <section id="step-7" class="wizard-step bg-white p-6 rounded-xl shadow-sm border border-gray-100 space-y-6 hidden">
+                    <h3 class="text-lg font-bold text-gray-900 border-b pb-2">Emergency Contacts & References</h3>
+
+                    <div class="space-y-5">
+                        <!-- EMERGENCY CONTACT 1 -->
+                        <div class="bg-slate-50 p-4 rounded-lg border border-slate-200 space-y-3">
+                            <h4 class="text-xs font-extrabold text-red-600 tracking-wider uppercase flex items-center">
+                                <span class="bg-red-100 text-red-600 p-1 rounded-full mr-2">
+                                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                                </span>
+                                Emergency Contact 1
+                            </h4>
+                            <div class="grid grid-cols-1 gap-2.5">
+                                <input type="text" id="ref_em1_name" class="w-full px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-base" placeholder="Contact Name">
+                                <input type="text" id="ref_em1_rel" class="w-full px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-base" placeholder="Relationship">
+                                <div class="grid grid-cols-2 gap-2">
+                                    <input type="tel" id="ref_em1_phone1" class="w-full px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-base" placeholder="Phone 1">
+                                    <input type="tel" id="ref_em1_phone2" class="w-full px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-base" placeholder="Phone 2">
+                                </div>
+                                <input type="text" id="ref_em1_addr" class="w-full px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-base" placeholder="Full Address, City, State, Zip">
+                            </div>
+                        </div>
+
+                        <!-- EMERGENCY CONTACT 2 -->
+                        <div class="bg-slate-50 p-4 rounded-lg border border-slate-200 space-y-3">
+                            <h4 class="text-xs font-extrabold text-slate-700 tracking-wider uppercase">Emergency Contact 2</h4>
+                            <div class="grid grid-cols-1 gap-2.5">
+                                <input type="text" id="ref_em2_name" class="w-full px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-base" placeholder="Contact Name">
+                                <input type="text" id="ref_em2_rel" class="w-full px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-base" placeholder="Relationship">
+                                <div class="grid grid-cols-2 gap-2">
+                                    <input type="tel" id="ref_em2_phone1" class="w-full px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-base" placeholder="Phone 1">
+                                    <input type="tel" id="ref_em2_phone2" class="w-full px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-base" placeholder="Phone 2">
+                                </div>
+                                <input type="text" id="ref_em2_addr" class="w-full px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-base" placeholder="Full Address, City, State, Zip">
+                            </div>
+                        </div>
+
+                        <!-- PERSONAL REFERENCE 1 -->
+                        <div class="bg-slate-50 p-4 rounded-lg border border-slate-200 space-y-3">
+                            <h4 class="text-xs font-extrabold text-slate-700 tracking-wider uppercase">Personal Reference 1</h4>
+                            <div class="grid grid-cols-1 gap-2.5">
+                                <input type="text" id="ref_pr1_name" class="w-full px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-base" placeholder="Reference Name">
+                                <input type="text" id="ref_pr1_rel" class="w-full px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-base" placeholder="Relationship">
+                                <div class="grid grid-cols-2 gap-2">
+                                    <input type="tel" id="ref_pr1_phone1" class="w-full px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-base" placeholder="Phone 1">
+                                    <input type="tel" id="ref_pr1_phone2" class="w-full px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-base" placeholder="Phone 2">
+                                </div>
+                                <input type="text" id="ref_pr1_addr" class="w-full px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-base" placeholder="Full Address, City, State, Zip">
+                            </div>
+                        </div>
+
+                        <!-- PERSONAL REFERENCE 2 -->
+                        <div class="bg-slate-50 p-4 rounded-lg border border-slate-200 space-y-3">
+                            <h4 class="text-xs font-extrabold text-slate-700 tracking-wider uppercase">Personal Reference 2</h4>
+                            <div class="grid grid-cols-1 gap-2.5">
+                                <input type="text" id="ref_pr2_name" class="w-full px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-base" placeholder="Reference Name">
+                                <input type="text" id="ref_pr2_rel" class="w-full px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-base" placeholder="Relationship">
+                                <div class="grid grid-cols-2 gap-2">
+                                    <input type="tel" id="ref_pr2_phone1" class="w-full px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-base" placeholder="Phone 1">
+                                    <input type="tel" id="ref_pr2_phone2" class="w-full px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-base" placeholder="Phone 2">
+                                </div>
+                                <input type="text" id="ref_pr2_addr" class="w-full px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-base" placeholder="Full Address, City, State, Zip">
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+
+                <!-- STEP 9: APPLICANT QUESTIONNAIRE & SIGNATURE -->
+                <section id="step-8" class="wizard-step bg-white p-6 rounded-xl shadow-sm border border-gray-100 space-y-6 hidden">
+                    <h3 class="text-lg font-bold text-gray-900 border-b pb-2">Questionnaire & Signatures</h3>
+
+                    <!-- Questionnaire Table-like Questions -->
+                    <div class="space-y-4">
+                        <h4 class="text-xs font-extrabold text-gray-700 uppercase tracking-wider">Has Applicant ever:</h4>
+                        
+                        <div class="space-y-3 divide-y divide-gray-100">
+                            <!-- Q1 -->
+                            <div class="pt-2 flex items-center justify-between">
+                                <span class="text-sm text-gray-700 pr-4">Been sued for bills?</span>
+                                <div class="flex space-x-2 flex-shrink-0">
+                                    <label class="q-btn-label"><input type="radio" name="q_sued" value="Yes" required class="sr-only"><span class="q-btn">Yes</span></label>
+                                    <label class="q-btn-label"><input type="radio" name="q_sued" value="No" class="sr-only"><span class="q-btn">No</span></label>
+                                </div>
+                            </div>
+                            <!-- Q2 -->
+                            <div class="pt-3 flex items-center justify-between">
+                                <span class="text-sm text-gray-700 pr-4">Been bankrupt?</span>
+                                <div class="flex space-x-2 flex-shrink-0">
+                                    <label class="q-btn-label"><input type="radio" name="q_bankrupt" value="Yes" required class="sr-only"><span class="q-btn">Yes</span></label>
+                                    <label class="q-btn-label"><input type="radio" name="q_bankrupt" value="No" class="sr-only"><span class="q-btn">No</span></label>
+                                </div>
+                            </div>
+                            <!-- Q3 -->
+                            <div class="pt-3 flex items-center justify-between">
+                                <span class="text-sm text-gray-700 pr-4">Been guilty of a felony?</span>
+                                <div class="flex space-x-2 flex-shrink-0">
+                                    <label class="q-btn-label"><input type="radio" name="q_felony" value="Yes" required class="sr-only"><span class="q-btn">Yes</span></label>
+                                    <label class="q-btn-label"><input type="radio" name="q_felony" value="No" class="sr-only"><span class="q-btn">No</span></label>
+                                </div>
+                            </div>
+                            <!-- Q4 -->
+                            <div class="pt-3 flex items-center justify-between">
+                                <span class="text-sm text-gray-700 pr-4">Broken a Lease?</span>
+                                <div class="flex space-x-2 flex-shrink-0">
+                                    <label class="q-btn-label"><input type="radio" name="q_lease" value="Yes" required class="sr-only"><span class="q-btn">Yes</span></label>
+                                    <label class="q-btn-label"><input type="radio" name="q_lease" value="No" class="sr-only"><span class="q-btn">No</span></label>
+                                </div>
+                            </div>
+                            <!-- Q5 -->
+                            <div class="pt-3 flex items-center justify-between">
+                                <span class="text-sm text-gray-700 pr-4">Been locked out by sheriff?</span>
+                                <div class="flex space-x-2 flex-shrink-0">
+                                    <label class="q-btn-label"><input type="radio" name="q_lockout" value="Yes" required class="sr-only"><span class="q-btn">Yes</span></label>
+                                    <label class="q-btn-label"><input type="radio" name="q_lockout" value="No" class="sr-only"><span class="q-btn">No</span></label>
+                                </div>
+                            </div>
+                            <!-- Q6 -->
+                            <div class="pt-3 flex items-center justify-between">
+                                <span class="text-sm text-gray-700 pr-4">Brought to court by landlord?</span>
+                                <div class="flex space-x-2 flex-shrink-0">
+                                    <label class="q-btn-label"><input type="radio" name="q_court" value="Yes" required class="sr-only"><span class="q-btn">Yes</span></label>
+                                    <label class="q-btn-label"><input type="radio" name="q_court" value="No" class="sr-only"><span class="q-btn">No</span></label>
+                                </div>
+                            </div>
+                            <!-- Q7 -->
+                            <div class="pt-3 flex items-center justify-between">
+                                <span class="text-sm text-gray-700 pr-4">Moved owing rent/damaged?</span>
+                                <div class="flex space-x-2 flex-shrink-0">
+                                    <label class="q-btn-label"><input type="radio" name="q_damaged" value="Yes" required class="sr-only"><span class="q-btn">Yes</span></label>
+                                    <label class="q-btn-label"><input type="radio" name="q_damaged" value="No" class="sr-only"><span class="q-btn">No</span></label>
+                                </div>
+                            </div>
+                            <!-- Q8 -->
+                            <div class="pt-3 flex items-center justify-between">
+                                <span class="text-sm text-gray-700 pr-4">Total move-in amount available now (rent + deposit)?</span>
+                                <div class="flex space-x-2 flex-shrink-0">
+                                    <label class="q-btn-label"><input type="radio" name="q_move_in_amt" value="Yes" required class="sr-only"><span class="q-btn">Yes</span></label>
+                                    <label class="q-btn-label"><input type="radio" name="q_move_in_amt" value="No" class="sr-only"><span class="q-btn">No</span></label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Authorization and Legal Agreement -->
+                    <div class="p-4 bg-primary-50 rounded-xl border border-primary-100 text-xs text-primary-900 space-y-2 leading-relaxed">
+                        <strong class="text-sm font-bold block mb-1">Authorization and Agreement</strong>
+                        Applicant authorizes the landlord to contact past and present landlords, employers, creditors, credit bureaus, neighbors and any other sources deemed necessary to investigate applicant. All information is true, accurate and complete to the best of applicant's knowledge. Landlord reserves the right to disqualify tenant if information is not as represented. ANY PERSON OR FIRM IS AUTHORIZED TO RELEASE INFORMATION ABOUT THE UNDERSIGNED UPON PRESENTATION OF THIS FORM OR A PHOTOCOPY OF THIS FORM AT ANY TIME.
+                    </div>
+
+                    <!-- TOUCH SIGNATURE PAD -->
+                    <div class="space-y-2">
+                        <div class="flex justify-between items-center">
+                            <label class="block text-sm font-bold text-gray-800">Applicant Signature <span class="text-red-500">*</span></label>
+                            <button type="button" onclick="clearSignature()" class="text-xs font-bold text-gray-500 hover:text-red-600 uppercase flex items-center">
+                                <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                Clear Pad
+                            </button>
+                        </div>
+                        <canvas id="sig-canvas" width="340" height="150" class="w-full"></canvas>
+                        <input type="hidden" id="signature-data" name="signature_data">
+                    </div>
+
+                    <!-- DATE -->
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700">Signature Date</label>
+                        <input type="date" id="signature_date" required class="w-full mt-1 px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-base">
+                    </div>
+
+                    <!-- NOTES -->
+                    <div>
+                        <label class="block text-sm font-semibold text-gray-700">Notes / Additional Comments</label>
+                        <textarea id="app_notes" class="w-full mt-1 px-4 py-2 border border-gray-300 rounded-lg bg-gray-50 text-base" rows="3" placeholder="Any explanations, co-signer notes, etc."></textarea>
+                    </div>
+                </section>
+
+
+                <!-- STEP 10: EXPORT / PRINT REVIEW -->
+                <section id="step-9" class="wizard-step bg-white p-6 rounded-xl shadow-sm border border-gray-100 space-y-6 hidden">
+                    <div class="text-center space-y-2">
+                        <span class="inline-block bg-emerald-100 text-emerald-700 p-3 rounded-full">
+                            <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                            </svg>
+                        </span>
+                        <h2 class="text-xl font-extrabold text-gray-950">Application Completed!</h2>
+                        <p class="text-gray-500 text-sm">Review your options below to submit your application to the landlord.</p>
+                    </div>
+                    <div class="space-y-4">
+                        <div class="p-4 bg-sky-50 border border-sky-200 rounded-xl text-center space-y-3">
+                            <strong class="text-sm font-bold text-sky-950 block">Submit to Landlord Online</strong>
+                            <p class="text-xs text-sky-700">Submitting online sends your application data directly to the landlord's database for immediate review.</p>
+                            <button id="btn-submit-db" type="button" onclick="submitApplicationToDatabase()" class="w-full bg-sky-600 hover:bg-sky-700 text-white font-bold py-3 px-4 rounded-lg shadow-md transition-colors flex items-center justify-center space-x-2 text-base">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg>
+                                <span>Submit Securely Online</span>
+                            </button>
+                        </div>
+
+                        <div class="relative flex py-2 items-center">
+                            <div class="flex-grow border-t border-gray-200"></div>
+                            <span class="flex-shrink mx-4 text-gray-400 text-xs uppercase font-semibold">Or Save Offline</span>
+                            <div class="flex-grow border-t border-gray-200"></div>
+                        </div>
+
+                        <button type="button" onclick="window.print()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-4 rounded-lg shadow-md transition-colors flex items-center justify-center space-x-2 text-base">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
+                            <span>Save as PDF / Print Form</span>
+                        </button>
+                        </button>
+                        
+                        <div class="grid grid-cols-2 gap-2">
+                            <button type="button" onclick="exportBackup()" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-2 px-3 rounded-lg text-xs border border-gray-200 flex items-center justify-center space-x-1">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                                <span>Save Backup (JSON)</span>
+                            </button>
+                            <label class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-2 px-3 rounded-lg text-xs border border-gray-200 flex items-center justify-center space-x-1 cursor-pointer">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                                <span>Load Backup (JSON)</span>
+                                <input type="file" id="load_backup_file" onchange="importBackup(this)" class="sr-only">
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Instructions on Mobile Saving -->
+                    <div class="bg-slate-50 border border-slate-200 p-4 rounded-xl space-y-3">
+                        <strong class="text-xs font-bold text-slate-800 uppercase tracking-wider block">How to save as PDF on your phone:</strong>
+                        <div class="text-xs text-slate-600 space-y-2">
+                            <p><strong>📱 iPhone (Safari):</strong> Click <strong class="text-sky-600">Print</strong> above, then tap the "Share" button at the top of the Apple print screen, and select "Save to Files" to get a clean PDF document.</p>
+                            <p><strong>📱 Android (Chrome):</strong> Click <strong class="text-sky-600">Print</strong> above, choose "Save as PDF" from the printer selection menu at the top, and click the PDF download circle.</p>
+                        </div>
+                    </div>
+                </section>
+
+            </form>
+        </main>
+
+        <!-- STICKY FOOTER NAVIGATION -->
+        <footer class="bg-white border-t border-gray-100 sticky bottom-0 z-40 px-4 py-3 flex items-center justify-between shadow-2xl">
+            <button id="btn-back" type="button" onclick="prevStep()" class="invisible bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-2.5 px-5 rounded-lg text-sm flex items-center space-x-1">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                <span>Back</span>
+            </button>
+            <button id="btn-next" type="button" onclick="nextStep()" class="bg-sky-600 hover:bg-sky-700 text-white font-bold py-2.5 px-6 rounded-lg text-sm flex items-center space-x-1 shadow-md">
+                <span>Continue</span>
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+            </button>
+        </footer>
+    </div>
+
+
+    <!-- ==================== PRINT ONLY EMBEDDED LAYOUT ==================== -->
+    <div class="print-only">
+        
+        <!-- ==================== PRINT PAGE 1 ==================== -->
+        <div>
+            <!-- Header Block -->
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 10px;">
+                <tr>
+                    <td style="width: 15%; text-align: center; vertical-align: middle; border: 2px solid #000; padding: 5px;">
+                        <span style="font-size: 24px; font-weight: bold;">🔑🏠</span>
+                    </td>
+                    <td style="width: 85%; vertical-align: middle; border: 2px solid #000; padding: 5px 10px; border-left: none;">
+                        <h1 style="font-size: 22px; font-weight: 900; margin: 0; text-transform: uppercase; letter-spacing: 1px;">RENTAL APPLICATION</h1>
+                        <p style="font-size: 8px; margin: 2px 0 0 0; color: #334155; font-weight: 500;">
+                            Every occupant over the age of 18 MUST fill out a separate application (even if married). Please fill out this form COMPLETELY and sign where indicated.
+                        </p>
+                    </td>
+                </tr>
+            </table>
+
+            <!-- Section 1: Personal Info -->
+            <div class="print-header">1. Personal Information</div>
+            <div class="print-grid" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 10px;">
+                <div class="print-cell"><span class="label-print">First Name</span><div id="print_p_first_name" class="val-print"></div></div>
+                <div class="print-cell"><span class="label-print">Middle Name</span><div id="print_p_middle_name" class="val-print"></div></div>
+                <div class="print-cell"><span class="label-print">Last Name</span><div id="print_p_last_name" class="val-print"></div></div>
+                <div class="print-cell"><span class="label-print">S.S.#</span><div id="print_p_ssn" class="val-print"></div></div>
+
+                <div class="print-cell"><span class="label-print">Date of Birth</span><div id="print_p_dob" class="val-print"></div></div>
+                <div class="print-cell" style="grid-column: span 2;"><span class="label-print">Marital Status</span><div id="print_p_marital_status_details" class="val-print"></div></div>
+                <div class="print-cell"><span class="label-print">Drivers License # / State</span><div id="print_p_dl_details" class="val-print"></div></div>
+
+                <div class="print-cell" style="grid-column: span 2;"><span class="label-print">Phone 1 (Cell/Home)</span><div id="print_p_phone1_details" class="val-print"></div></div>
+                <div class="print-cell"><span class="label-print">Phone 2 (Home/Work) / Ext</span><div id="print_p_phone2_details" class="val-print"></div></div>
+                <div class="print-cell"><span class="label-print">Email Address</span><div id="print_p_email" class="val-print"></div></div>
+            </div>
+
+            <!-- Present Address -->
+            <div class="print-sub-header" style="border: 1px solid #000; border-bottom: none; font-size: 8px; text-transform: uppercase; padding: 2px 5px;">Present Home Address Details</div>
+            <div class="print-grid" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 10px; border-top: none;">
+                <div class="print-cell" style="grid-column: span 2;"><span class="label-print">Present Home Address</span><div id="print_r1_address" class="val-print"></div></div>
+                <div class="print-cell" style="grid-column: span 2;"><span class="label-print">City / State / Zip</span><div id="print_r1_city_state_zip" class="val-print"></div></div>
+                
+                <div class="print-cell"><span class="label-print">Length of Time</span><div id="print_r1_length" class="val-print"></div></div>
+                <div class="print-cell" style="grid-column: span 2;"><span class="label-print">Present Landlord</span><div id="print_r1_landlord" class="val-print"></div></div>
+                <div class="print-cell"><span class="label-print">Landlord Phone</span><div id="print_r1_landlord_phone" class="val-print"></div></div>
+
+                <div class="print-cell" style="grid-column: span 2;"><span class="label-print">Reason for Leaving</span><div id="print_r1_leaving_reason" class="val-print"></div></div>
+                <div class="print-cell"><span class="label-print">Amount of Rent</span><div id="print_r1_rent" class="val-print"></div></div>
+                <div class="print-cell"><span class="label-print">Rent up to date?</span><div id="print_r1_up_to_date" class="val-print"></div></div>
+            </div>
+
+            <!-- Previous Address 1 -->
+            <div class="print-sub-header" style="border: 1px solid #000; border-bottom: none; font-size: 8px; text-transform: uppercase; padding: 2px 5px;">Previous Home Address Details</div>
+            <div class="print-grid" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 10px; border-top: none;">
+                <div class="print-cell" style="grid-column: span 2;"><span class="label-print">Previous Home Address</span><div id="print_r2_address" class="val-print"></div></div>
+                <div class="print-cell" style="grid-column: span 2;"><span class="label-print">City / State / Zip</span><div id="print_r2_city_state_zip" class="val-print"></div></div>
+                
+                <div class="print-cell"><span class="label-print">Length of Time</span><div id="print_r2_length" class="val-print"></div></div>
+                <div class="print-cell" style="grid-column: span 2;"><span class="label-print">Previous Landlord</span><div id="print_r2_landlord" class="val-print"></div></div>
+                <div class="print-cell"><span class="label-print">Landlord Phone</span><div id="print_r2_landlord_phone" class="val-print"></div></div>
+
+                <div class="print-cell" style="grid-column: span 2;"><span class="label-print">Reason for Leaving</span><div id="print_r2_leaving_reason" class="val-print"></div></div>
+                <div class="print-cell"><span class="label-print">Amount of Rent</span><div id="print_r2_rent" class="val-print"></div></div>
+                <div class="print-cell"><span class="label-print">Rent up to date?</span><div id="print_r2_up_to_date" class="val-print"></div></div>
+            </div>
+
+            <!-- Previous Address 2 -->
+            <div class="print-sub-header" style="border: 1px solid #000; border-bottom: none; font-size: 8px; text-transform: uppercase; padding: 2px 5px;">Next Previous Home Address Details</div>
+            <div class="print-grid" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 10px; border-top: none;">
+                <div class="print-cell" style="grid-column: span 2;"><span class="label-print">Next Previous Home Address</span><div id="print_r3_address" class="val-print"></div></div>
+                <div class="print-cell" style="grid-column: span 2;"><span class="label-print">City / State / Zip</span><div id="print_r3_city_state_zip" class="val-print"></div></div>
+                
+                <div class="print-cell"><span class="label-print">Length of Time</span><div id="print_r3_length" class="val-print"></div></div>
+                <div class="print-cell" style="grid-column: span 2;"><span class="label-print">Next Previous Landlord</span><div id="print_r3_landlord" class="val-print"></div></div>
+                <div class="print-cell"><span class="label-print">Landlord Phone</span><div id="print_r3_landlord_phone" class="val-print"></div></div>
+
+                <div class="print-cell" style="grid-column: span 2;"><span class="label-print">Reason for Leaving</span><div id="print_r3_leaving_reason" class="val-print"></div></div>
+                <div class="print-cell"><span class="label-print">Amount of Rent</span><div id="print_r3_rent" class="val-print"></div></div>
+                <div class="print-cell"><span class="label-print">Rent up to date?</span><div id="print_r3_up_to_date" class="val-print"></div></div>
+            </div>
+
+            <!-- Section 2: Proposed Occupant(s) -->
+            <div class="print-header">Proposed Occupant(s)</div>
+            <div class="print-grid" style="grid-template-columns: 2fr 1fr 1fr 1fr; margin-bottom: 10px;" id="print_occupants_grid">
+                <!-- Dynamically Populated Header -->
+                <div class="print-cell print-sub-header">Name</div>
+                <div class="print-cell print-sub-header">Relationship</div>
+                <div class="print-cell print-sub-header">Occupation</div>
+                <div class="print-cell print-sub-header">Age</div>
+                <!-- Dynamic Rows will be inserted here (max 5) -->
+            </div>
+
+            <!-- Section 3: Proposed Pets -->
+            <div class="print-header">Proposed Pet(s)</div>
+            <div class="print-grid" style="grid-template-columns: 2fr 2fr 1fr 1fr; margin-bottom: 10px;" id="print_pets_grid">
+                <div class="print-cell print-sub-header">Name</div>
+                <div class="print-cell print-sub-header">Type/Breed</div>
+                <div class="print-cell print-sub-header">Indoor/Outdoor</div>
+                <div class="print-cell print-sub-header">Age</div>
+                <!-- Dynamic Rows (max 3) -->
+            </div>
+
+            <!-- Section 4: Vehicle Information -->
+            <div class="print-header">Vehicle(s) Information</div>
+            <div class="print-grid" style="grid-template-columns: repeat(6, 1fr); margin-bottom: 10px;" id="print_vehicles_grid">
+                <div class="print-cell print-sub-header">Year</div>
+                <div class="print-cell print-sub-header">Make</div>
+                <div class="print-cell print-sub-header">Model</div>
+                <div class="print-cell print-sub-header">Color</div>
+                <div class="print-cell print-sub-header">Plate #</div>
+                <div class="print-cell print-sub-header">State</div>
+                <!-- Dynamic Rows (max 2) -->
+            </div>
+
+            <!-- Section 5: Employment -->
+            <div class="print-header">Employment</div>
+            <!-- Job 1 -->
+            <div class="print-sub-header" style="border: 1px solid #000; border-bottom: none; font-size: 8px; text-transform: uppercase; padding: 2px 5px;">Current Employer Details 1</div>
+            <div class="print-grid" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 10px; border-top: none;">
+                <div class="print-cell" style="grid-column: span 2;"><span class="label-print">Current Employer</span><div id="print_emp1_name" class="val-print"></div></div>
+                <div class="print-cell"><span class="label-print">Occupation</span><div id="print_emp1_occ" class="val-print"></div></div>
+                <div class="print-cell"><span class="label-print">Hours/Week</span><div id="print_emp1_hours" class="val-print"></div></div>
+
+                <div class="print-cell"><span class="label-print">Supervisor</span><div id="print_emp1_super" class="val-print"></div></div>
+                <div class="print-cell" style="grid-column: span 2;"><span class="label-print">Phone / Ext</span><div id="print_emp1_phone_details" class="val-print"></div></div>
+                <div class="print-cell"><span class="label-print">Years Employed</span><div id="print_emp1_years" class="val-print"></div></div>
+
+                <div class="print-cell" style="grid-column: span 4;"><span class="label-print">Address / City / State / Zip</span><div id="print_emp1_address_full" class="val-print"></div></div>
+            </div>
+
+            <!-- Job 2 -->
+            <div class="print-sub-header" style="border: 1px solid #000; border-bottom: none; font-size: 8px; text-transform: uppercase; padding: 2px 5px;">Employer Details 2 / Previous Job</div>
+            <div class="print-grid" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 10px; border-top: none;">
+                <div class="print-cell" style="grid-column: span 2;"><span class="label-print">Employer 2 Name</span><div id="print_emp2_name" class="val-print"></div></div>
+                <div class="print-cell"><span class="label-print">Occupation</span><div id="print_emp2_occ" class="val-print"></div></div>
+                <div class="print-cell"><span class="label-print">Hours/Week</span><div id="print_emp2_hours" class="val-print"></div></div>
+
+                <div class="print-cell"><span class="label-print">Supervisor</span><div id="print_emp2_super" class="val-print"></div></div>
+                <div class="print-cell" style="grid-column: span 2;"><span class="label-print">Phone / Ext</span><div id="print_emp2_phone_details" class="val-print"></div></div>
+                <div class="print-cell"><span class="label-print">Years Employed</span><div id="print_emp2_years" class="val-print"></div></div>
+
+                <div class="print-cell" style="grid-column: span 4;"><span class="label-print">Address / City / State / Zip</span><div id="print_emp2_address_full" class="val-print"></div></div>
+            </div>
+
+            <!-- Income Section -->
+            <div class="print-header">Income Information</div>
+            <div class="print-grid" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 10px;" id="print_income_grid">
+                <div class="print-cell print-sub-header">Current Income Amount</div>
+                <div class="print-cell print-sub-header">Frequency</div>
+                <div class="print-cell print-sub-header">Source</div>
+                <div class="print-cell print-sub-header">Proof of Income Available?</div>
+                <!-- Dynamic rows (max 3) -->
+            </div>
+
+            <div style="text-align: right; font-size: 8px; color: #475569; font-weight: bold;">Page 1 of 2</div>
+        </div>
+
+        <!-- ==================== PRINT PAGE 2 ==================== -->
+        <div class="page-break">
+            <!-- Header Block Page 2 -->
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 10px;">
+                <tr>
+                    <td style="width: 15%; text-align: center; vertical-align: middle; border: 2px solid #000; padding: 5px;">
+                        <span style="font-size: 24px; font-weight: bold;">🔑🏠</span>
+                    </td>
+                    <td style="width: 85%; vertical-align: middle; border: 2px solid #000; padding: 5px 10px; border-left: none;">
+                        <h1 style="font-size: 22px; font-weight: 900; margin: 0; text-transform: uppercase; letter-spacing: 1px;">RENTAL APPLICATION</h1>
+                        <div style="font-size: 8px; margin: 2px 0 0 0; color: #334155; font-weight: bold;">Page 2 - Financial & Authorization Information</div>
+                    </td>
+                </tr>
+            </table>
+
+            <!-- Section: Credit Card / Financial Information -->
+            <div class="print-header">Credit Card / Financial Information</div>
+            <div class="print-grid" style="grid-template-columns: 2fr 1fr 1fr 1fr; margin-bottom: 10px;">
+                <!-- Header -->
+                <div class="print-cell print-sub-header">Creditor / Lien Holder Name</div>
+                <div class="print-cell print-sub-header">Balance Owed</div>
+                <div class="print-cell print-sub-header">Monthly Payment</div>
+                <div class="print-cell print-sub-header">Creditor Phone #</div>
+                
+                <!-- Car Loan -->
+                <div class="print-cell"><span class="label-print">Car Loan / Lien Holder</span><div id="print_f_car_holder" class="val-print"></div></div>
+                <div class="print-cell"><span class="label-print">Balance</span><div id="print_f_car_bal" class="val-print"></div></div>
+                <div class="print-cell"><span class="label-print">Payment</span><div id="print_f_car_pmt" class="val-print"></div></div>
+                <div class="print-cell"><span class="label-print">Phone</span><div id="print_f_car_phone" class="val-print"></div></div>
+
+                <!-- CC 1 -->
+                <div class="print-cell"><span class="label-print">Credit Card Company 1</span><div id="print_f_cc1_co" class="val-print"></div></div>
+                <div class="print-cell"><span class="label-print">Balance</span><div id="print_f_cc1_bal" class="val-print"></div></div>
+                <div class="print-cell"><span class="label-print">Payment</span><div id="print_f_cc1_pmt" class="val-print"></div></div>
+                <div class="print-cell"><span class="label-print">Phone</span><div id="print_f_cc1_phone" class="val-print"></div></div>
+
+                <!-- CC 2 -->
+                <div class="print-cell"><span class="label-print">Credit Card Company 2</span><div id="print_f_cc2_co" class="val-print"></div></div>
+                <div class="print-cell"><span class="label-print">Balance</span><div id="print_f_cc2_bal" class="val-print"></div></div>
+                <div class="print-cell"><span class="label-print">Payment</span><div id="print_f_cc2_pmt" class="val-print"></div></div>
+                <div class="print-cell"><span class="label-print">Phone</span><div id="print_f_cc2_phone" class="val-print"></div></div>
+
+                <!-- CC 3 -->
+                <div class="print-cell"><span class="label-print">Credit Card Company 3</span><div id="print_f_cc3_co" class="val-print"></div></div>
+                <div class="print-cell"><span class="label-print">Balance</span><div id="print_f_cc3_bal" class="val-print"></div></div>
+                <div class="print-cell"><span class="label-print">Payment</span><div id="print_f_cc3_pmt" class="val-print"></div></div>
+                <div class="print-cell"><span class="label-print">Phone</span><div id="print_f_cc3_phone" class="val-print"></div></div>
+
+                <!-- Other Credit -->
+                <div class="print-cell"><span class="label-print">Child Support / Other Credit Owed</span><div id="print_f_support_co" class="val-print">Child Support / Other</div></div>
+                <div class="print-cell"><span class="label-print">Balance</span><div id="print_f_support_bal" class="val-print"></div></div>
+                <div class="print-cell"><span class="label-print">Payment</span><div id="print_f_support_pmt" class="val-print"></div></div>
+                <div class="print-cell"><span class="label-print">Phone</span><div id="print_f_support_phone" class="val-print"></div></div>
+
+                <!-- Bank Accounts -->
+                <div class="print-cell" style="grid-column: span 2;"><span class="label-print">Bank Account / Name of Bank</span><div id="print_f_bank_name" class="val-print"></div></div>
+                <div class="print-cell"><span class="label-print">Balance</span><div id="print_f_bank_bal" class="val-print"></div></div>
+                <div class="print-cell" style="grid-column: span 2;"><span class="label-print">Account Number</span><div id="print_f_bank_acct" class="val-print"></div></div>
+            </div>
+
+            <!-- Section: Emergency / References -->
+            <div class="print-header">Emergency / Personal Reference Information</div>
+            <div class="print-grid" style="grid-template-columns: repeat(4, 1fr); margin-bottom: 10px;">
+                <!-- Em 1 -->
+                <div class="print-cell" style="grid-column: span 2;"><span class="label-print">Emergency Contact 1 Name</span><div id="print_ref_em1_name" class="val-print"></div></div>
+                <div class="print-cell"><span class="label-print">Phone 1 (Cell/Home)</span><div id="print_ref_em1_phone1" class="val-print"></div></div>
+                <div class="print-cell"><span class="label-print">Phone 2 (Home/Work)</span><div id="print_ref_em1_phone2" class="val-print"></div></div>
+                <div class="print-cell"><span class="label-print">Relationship</span><div id="print_ref_em1_rel" class="val-print"></div></div>
+                <div class="print-cell" style="grid-column: span 3;"><span class="label-print">Full Address / City / State / Zip</span><div id="print_ref_em1_addr" class="val-print"></div></div>
+
+                <!-- Em 2 -->
+                <div class="print-cell" style="grid-column: span 2;"><span class="label-print">Emergency Contact 2 Name</span><div id="print_ref_em2_name" class="val-print"></div></div>
+                <div class="print-cell"><span class="label-print">Phone 1 (Cell/Home)</span><div id="print_ref_em2_phone1" class="val-print"></div></div>
+                <div class="print-cell"><span class="label-print">Phone 2 (Home/Work)</span><div id="print_ref_em2_phone2" class="val-print"></div></div>
+                <div class="print-cell"><span class="label-print">Relationship</span><div id="print_ref_em2_rel" class="val-print"></div></div>
+                <div class="print-cell" style="grid-column: span 3;"><span class="label-print">Full Address / City / State / Zip</span><div id="print_ref_em2_addr" class="val-print"></div></div>
+
+                <!-- Ref 1 -->
+                <div class="print-cell" style="grid-column: span 2;"><span class="label-print">Personal Reference 1 Name</span><div id="print_ref_pr1_name" class="val-print"></div></div>
+                <div class="print-cell"><span class="label-print">Phone 1 (Cell/Home)</span><div id="print_ref_pr1_phone1" class="val-print"></div></div>
+                <div class="print-cell"><span class="label-print">Phone 2 (Home/Work)</span><div id="print_ref_pr1_phone2" class="val-print"></div></div>
+                <div class="print-cell"><span class="label-print">Relationship</span><div id="print_ref_pr1_rel" class="val-print"></div></div>
+                <div class="print-cell" style="grid-column: span 3;"><span class="label-print">Full Address / City / State / Zip</span><div id="print_ref_pr1_addr" class="val-print"></div></div>
+
+                <!-- Ref 2 -->
+                <div class="print-cell" style="grid-column: span 2;"><span class="label-print">Personal Reference 2 Name</span><div id="print_ref_pr2_name" class="val-print"></div></div>
+                <div class="print-cell"><span class="label-print">Phone 1 (Cell/Home)</span><div id="print_ref_pr2_phone1" class="val-print"></div></div>
+                <div class="print-cell"><span class="label-print">Phone 2 (Home/Work)</span><div id="print_ref_pr2_phone2" class="val-print"></div></div>
+                <div class="print-cell"><span class="label-print">Relationship</span><div id="print_ref_pr2_rel" class="val-print"></div></div>
+                <div class="print-cell" style="grid-column: span 3;"><span class="label-print">Full Address / City / State / Zip</span><div id="print_ref_pr2_addr" class="val-print"></div></div>
+            </div>
+
+            <!-- Section: Applicant Questionnaire -->
+            <div class="print-header">Applicant Questionnaire</div>
+            <div class="print-grid" style="grid-template-columns: 3fr 1fr 3fr 1fr; margin-bottom: 10px;">
+                <div class="print-cell">Has applicant ever been sued for bills?</div>
+                <div class="print-cell" id="print_q_sued"></div>
+                <div class="print-cell">Has applicant ever been locked out of their apartment by the sheriff?</div>
+                <div class="print-cell" id="print_q_lockout"></div>
+
+                <div class="print-cell">Has applicant ever been bankrupt?</div>
+                <div class="print-cell" id="print_q_bankrupt"></div>
+                <div class="print-cell">Has applicant ever been brought to court by another landlord?</div>
+                <div class="print-cell" id="print_q_court"></div>
+
+                <div class="print-cell">Has applicant ever been guilty of a felony?</div>
+                <div class="print-cell" id="print_q_felony"></div>
+                <div class="print-cell">Has applicant ever moved owing rent or damaged an apartment?</div>
+                <div class="print-cell" id="print_q_damaged"></div>
+
+                <div class="print-cell">Has applicant ever broken a Lease?</div>
+                <div class="print-cell" id="print_q_lease"></div>
+                <div class="print-cell">Is the total move-in amount available now (rent and deposit)?</div>
+                <div class="print-cell" id="print_q_move_in_amt"></div>
+            </div>
+
+            <!-- Authorization text -->
+            <div style="border: 1px solid #000; padding: 6px; font-size: 8px; margin-bottom: 10px; line-height: 1.3; text-align: justify;">
+                <strong>APPLICANT AUTHORIZATION & LEGAL STATEMENT:</strong><br>
+                Applicant authorizes the landlord to contact past and present landlords, employers, creditors, credit bureaus, neighbors and any other sources deemed necessary to investigate applicant. All information is true, accurate and complete to the best of applicant's knowledge. Landlord reserves the right to disqualify tenant if information is not as represented. ANY PERSON OR FIRM IS AUTHORIZED TO RELEASE INFORMATION ABOUT THE UNDERSIGNED UPON PRESENTATION OF THIS FORM OR A PHOTOCOPY OF THIS FORM AT ANY TIME.
+            </div>
+
+            <!-- Signature and Date Box -->
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 10px;">
+                <tr>
+                    <td style="width: 70%; border: 1px solid #000; padding: 4px; vertical-align: bottom; height: 50px;">
+                        <span class="label-print" style="margin-bottom: 2px;">X APPLICANT SIGNATURE</span>
+                        <div style="text-align: center; width: 100%;">
+                            <img id="print-signature-img" class="hidden" style="max-height: 45px; display: inline-block;" alt="Applicant Signature">
+                        </div>
+                    </td>
+                    <td style="width: 30%; border: 1px solid #000; border-left: none; padding: 4px; vertical-align: bottom;">
+                        <span class="label-print">DATE</span>
+                        <div id="print_signature_date" style="font-size: 11px; font-weight: bold; padding-bottom: 4px;"></div>
+                    </td>
+                </tr>
+            </table>
+
+            <!-- Notes Section -->
+            <div style="border: 1px solid #000; padding: 4px; min-height: 50px;">
+                <span class="label-print">NOTES / ADDITIONAL COMMENTS</span>
+                <div id="print_app_notes" style="font-size: 9px; white-space: pre-wrap; margin-top: 3px;"></div>
+            </div>
+
+            <div style="text-align: right; font-size: 8px; color: #475569; font-weight: bold; margin-top: 5px;">Page 2 of 2</div>
+        </div>
+
+    </div>
+
+    <!-- ==================== WIZARD SCRIPT ==================== -->
+    <script>
+        // State variables
+        let currentStep = 0;
+        const totalSteps = 9; // Step 0 to 9
+        
+        // Define lists for occupants, pets, vehicles, income
+        let occupants = [];
+        let pets = [];
+        let vehicles = [];
+        let incomeEntries = [];
+
+        // Steps mapping for name and completeness tracking
+        const stepNames = [
+            "Welcome",
+            "Personal Info",
+            "Present Address",
+            "Previous Addresses",
+            "Occupants & Pets",
+            "Employment History",
+            "Credit & Finance",
+            "References",
+            "Agreement & Signature",
+            "Review & Export"
+        ];
+
+        // Initialize Form
+        window.addEventListener('DOMContentLoaded', () => {
+            // Set Date Defaults
+            const todayStr = new Date().toISOString().split('T')[0];
+            document.getElementById('signature_date').value = todayStr;
+
+            // Load saved data from localStorage if exists
+            loadProgress();
+
+            // Set up dynamic rows if they were empty
+            if (occupants.length === 0) {
+                occupants.push({ name: '', relationship: '', occupation: '', age: '' });
+            }
+            renderOccupants();
+            renderPets();
+            renderVehicles();
+            renderIncome();
+
+            // Set up signature canvas
+            initSignaturePad();
+
+            // Setup state change listeners for autosave
+            setupAutosaveListeners();
+
+            // Show initial step
+            showStep(0);
+        });
+
+        // Show/Hide Steps
+        function showStep(stepIndex) {
+            currentStep = stepIndex;
+            
+            // Hide all steps
+            document.querySelectorAll('.wizard-step').forEach(step => {
+                step.classList.add('hidden');
+            });
+            
+            // Show active step
+            document.getElementById(`step-${stepIndex}`).classList.remove('hidden');
+
+            // Scroll to top
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+
+            // Update Progress Bar
+            const percent = (stepIndex / totalSteps) * 100;
+            document.getElementById('progress-bar').style.width = `${percent}%`;
+            document.getElementById('progress-percent').innerText = `${Math.round(percent)}% Complete`;
+            document.getElementById('progress-step-name').innerText = stepNames[stepIndex];
+            document.getElementById('wizard-progress-badge').innerText = `Step ${stepIndex + 1} of ${totalSteps + 1}`;
+
+            // Sticky footer buttons behavior
+            const backBtn = document.getElementById('btn-back');
+            const nextBtn = document.getElementById('btn-next');
+
+            if (stepIndex === 0) {
+                backBtn.classList.add('invisible');
+                nextBtn.classList.remove('hidden');
+                nextBtn.innerHTML = `<span>Get Started</span><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>`;
+            } else {
+                backBtn.classList.remove('invisible');
+                if (stepIndex === totalSteps) {
+                    nextBtn.classList.add('hidden'); // No next button on final screen
+                } else {
+                    nextBtn.classList.remove('hidden');
+                    nextBtn.innerHTML = `<span>Continue</span><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>`;
+                }
+            }
+
+            // Sync layout when entering the review step
+            if (stepIndex === totalSteps) {
+                syncPrintLayout();
+            }
+        }
+
+        function nextStep() {
+            // Run validation before proceeding
+            if (currentStep > 0) {
+                const stepForm = document.getElementById(`step-${currentStep}`);
+                const inputs = stepForm.querySelectorAll('input[required], select[required], textarea[required]');
+                let valid = true;
+                
+                inputs.forEach(input => {
+                    if (!input.value) {
+                        input.classList.add('border-red-500');
+                        valid = false;
+                    } else {
+                        input.classList.remove('border-red-500');
+                    }
+                });
+
+                // Extra check for signature pad on Step 8
+                if (currentStep === 8) {
+                    const sigData = document.getElementById('signature-data').value;
+                    if (!sigData) {
+                        alert("Please sign the application signature pad before continuing.");
+                        document.getElementById('sig-canvas').style.borderColor = '#ef4444';
+                        return;
+                    } else {
+                        document.getElementById('sig-canvas').style.borderColor = '#cbd5e1';
+                    }
+                }
+
+                if (!valid) {
+                    alert("Please fill out all required fields marked with * before continuing.");
+                    return;
+                }
+            }
+
+            if (currentStep < totalSteps) {
+                showStep(currentStep + 1);
+            }
+        }
+
+        function prevStep() {
+            if (currentStep > 0) {
+                showStep(currentStep - 1);
+            }
+        }
+
+        function toggleMaritalDate() {
+            const status = document.getElementById('p_marital_status').value;
+            const container = document.getElementById('marital_date_container');
+            const label = document.getElementById('marital_date_label');
+            const input = document.getElementById('p_marital_date');
+
+            if (status === 'Married') {
+                container.classList.remove('hidden');
+                label.innerText = 'Married Since';
+                input.required = true;
+            } else if (status === 'Divorced') {
+                container.classList.remove('hidden');
+                label.innerText = 'Divorced Since';
+                input.required = true;
+            } else {
+                container.classList.add('hidden');
+                input.value = '';
+                input.required = false;
+            }
+        }
+
+        function togglePreviousAddresses() {
+            const skip = document.getElementById('skip_prev_addresses').checked;
+            const container = document.getElementById('previous_addresses_container');
+            const inputs = container.querySelectorAll('input, select');
+
+            if (skip) {
+                container.classList.add('opacity-40');
+                inputs.forEach(i => {
+                    i.disabled = true;
+                    i.value = '';
+                });
+            } else {
+                container.classList.remove('opacity-40');
+                inputs.forEach(i => i.disabled = false);
+            }
+            saveProgress();
+        }
+
+        function toggleEmployer2() {
+            const addJob = document.getElementById('has_emp2').checked;
+            const container = document.getElementById('emp2_fields_container');
+            
+            if (addJob) {
+                container.classList.remove('hidden');
+            } else {
+                container.classList.add('hidden');
+                // Clear fields
+                container.querySelectorAll('input').forEach(i => i.value = '');
+            }
+            saveProgress();
+        }
+
+        // ==================== OCCUPANTS DYNAMIC ROWS ====================
+        function renderOccupants() {
+            const container = document.getElementById('occupants_container');
+            container.innerHTML = '';
+            
+            occupants.forEach((occ, index) => {
+                const div = document.createElement('div');
+                div.className = "p-3 bg-slate-50 border border-slate-200 rounded-lg relative space-y-2";
+                div.innerHTML = `
+                    <div class="flex justify-between items-center">
+                        <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Occupant #${index + 1}</span>
+                        ${index > 0 ? `
+                        <button type="button" onclick="removeOccupantRow(${index})" class="text-red-500 hover:text-red-700 text-xs font-semibold uppercase flex items-center">
+                            <svg class="w-3 h-3 mr-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                            Remove
+                        </button>` : ''}
+                    </div>
+                    <div class="grid grid-cols-1 gap-2">
+                        <input type="text" placeholder="Full Name" value="${occ.name || ''}" onchange="updateOccupantVal(${index}, 'name', this.value)" class="w-full px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-base">
+                        <div class="grid grid-cols-3 gap-2">
+                            <input type="text" placeholder="Relation" value="${occ.relationship || ''}" onchange="updateOccupantVal(${index}, 'relationship', this.value)" class="w-full px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-sm col-span-2">
+                            <input type="number" placeholder="Age" value="${occ.age || ''}" onchange="updateOccupantVal(${index}, 'age', this.value)" class="w-full px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-sm" inputmode="numeric">
+                        </div>
+                        <input type="text" placeholder="Occupation" value="${occ.occupation || ''}" onchange="updateOccupantVal(${index}, 'occupation', this.value)" class="w-full px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-base">
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function addOccupantRow() {
+            if (occupants.length >= 5) {
+                alert("Maximum of 5 occupants.");
+                return;
+            }
+            occupants.push({ name: '', relationship: '', occupation: '', age: '' });
+            renderOccupants();
+            saveProgress();
+        }
+
+        function removeOccupantRow(index) {
+            occupants.splice(index, 1);
+            renderOccupants();
+            saveProgress();
+        }
+
+        function updateOccupantVal(index, field, value) {
+            occupants[index][field] = value;
+            saveProgress();
+        }
+
+        // ==================== PETS DYNAMIC ROWS ====================
+        function renderPets() {
+            const container = document.getElementById('pets_container');
+            container.innerHTML = '';
+            
+            const noPetsText = document.getElementById('no_pets_text');
+            if (pets.length === 0) {
+                noPetsText.classList.remove('hidden');
+                return;
+            } else {
+                noPetsText.classList.add('hidden');
+            }
+
+            pets.forEach((pet, index) => {
+                const div = document.createElement('div');
+                div.className = "p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-2";
+                div.innerHTML = `
+                    <div class="flex justify-between items-center">
+                        <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Pet #${index + 1}</span>
+                        <button type="button" onclick="removePetRow(${index})" class="text-red-500 hover:text-red-700 text-xs font-semibold uppercase flex items-center">
+                            <svg class="w-3 h-3 mr-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                            Remove
+                        </button>
+                    </div>
+                    <div class="grid grid-cols-1 gap-2">
+                        <input type="text" placeholder="Pet Name" value="${pet.name || ''}" onchange="updatePetVal(${index}, 'name', this.value)" class="w-full px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-base">
+                        <input type="text" placeholder="Type / Breed" value="${pet.breed || ''}" onchange="updatePetVal(${index}, 'breed', this.value)" class="w-full px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-base">
+                        <div class="grid grid-cols-2 gap-2">
+                            <select onchange="updatePetVal(${index}, 'behavior', this.value)" class="w-full px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-sm">
+                                <option value="Indoor" ${pet.behavior === 'Indoor' ? 'selected' : ''}>Indoor</option>
+                                <option value="Outdoor" ${pet.behavior === 'Outdoor' ? 'selected' : ''}>Outdoor</option>
+                            </select>
+                            <input type="number" placeholder="Age" value="${pet.age || ''}" onchange="updatePetVal(${index}, 'age', this.value)" class="w-full px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-sm" inputmode="numeric">
+                        </div>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function addPetRow() {
+            if (pets.length >= 3) {
+                alert("Maximum of 3 pets.");
+                return;
+            }
+            pets.push({ name: '', breed: '', behavior: 'Indoor', age: '' });
+            renderPets();
+            saveProgress();
+        }
+
+        function removePetRow(index) {
+            pets.splice(index, 1);
+            renderPets();
+            saveProgress();
+        }
+
+        function updatePetVal(index, field, value) {
+            pets[index][field] = value;
+            saveProgress();
+        }
+
+        // ==================== VEHICLES DYNAMIC ROWS ====================
+        function renderVehicles() {
+            const container = document.getElementById('vehicles_container');
+            container.innerHTML = '';
+            
+            const noVehiclesText = document.getElementById('no_vehicles_text');
+            if (vehicles.length === 0) {
+                noVehiclesText.classList.remove('hidden');
+                return;
+            } else {
+                noVehiclesText.classList.add('hidden');
+            }
+
+            vehicles.forEach((veh, index) => {
+                const div = document.createElement('div');
+                div.className = "p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-2";
+                div.innerHTML = `
+                    <div class="flex justify-between items-center">
+                        <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Vehicle #${index + 1}</span>
+                        <button type="button" onclick="removeVehicleRow(${index})" class="text-red-500 hover:text-red-700 text-xs font-semibold uppercase flex items-center">
+                            <svg class="w-3 h-3 mr-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                            Remove
+                        </button>
+                    </div>
+                    <div class="grid grid-cols-1 gap-2">
+                        <div class="grid grid-cols-3 gap-2">
+                            <input type="number" placeholder="Year" value="${veh.year || ''}" onchange="updateVehicleVal(${index}, 'year', this.value)" class="w-full px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-sm" inputmode="numeric">
+                            <input type="text" placeholder="Make" value="${veh.make || ''}" onchange="updateVehicleVal(${index}, 'make', this.value)" class="w-full px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-sm col-span-2">
+                        </div>
+                        <div class="grid grid-cols-2 gap-2">
+                            <input type="text" placeholder="Model" value="${veh.model || ''}" onchange="updateVehicleVal(${index}, 'model', this.value)" class="w-full px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-sm">
+                            <input type="text" placeholder="Color" value="${veh.color || ''}" onchange="updateVehicleVal(${index}, 'color', this.value)" class="w-full px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-sm">
+                        </div>
+                        <div class="grid grid-cols-3 gap-2">
+                            <input type="text" placeholder="Plate #" value="${veh.plate || ''}" onchange="updateVehicleVal(${index}, 'plate', this.value)" class="w-full px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-sm col-span-2">
+                            <input type="text" placeholder="State" value="${veh.state || ''}" onchange="updateVehicleVal(${index}, 'state', this.value)" class="w-full px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-sm">
+                        </div>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function addVehicleRow() {
+            if (vehicles.length >= 2) {
+                alert("Maximum of 2 vehicles.");
+                return;
+            }
+            vehicles.push({ year: '', make: '', model: '', color: '', plate: '', state: '' });
+            renderVehicles();
+            saveProgress();
+        }
+
+        function removeVehicleRow(index) {
+            vehicles.splice(index, 1);
+            renderVehicles();
+            saveProgress();
+        }
+
+        function updateVehicleVal(index, field, value) {
+            vehicles[index][field] = value;
+            saveProgress();
+        }
+
+        // ==================== INCOME DYNAMIC ROWS ====================
+        function renderIncome() {
+            const container = document.getElementById('income_container');
+            container.innerHTML = '';
+            
+            if (incomeEntries.length === 0) {
+                incomeEntries.push({ amount: '', frequency: 'Monthly', source: '', proof: 'Yes' });
+            }
+
+            incomeEntries.forEach((inc, index) => {
+                const div = document.createElement('div');
+                div.className = "p-3 bg-slate-50 border border-slate-200 rounded-lg space-y-2";
+                div.innerHTML = `
+                    <div class="flex justify-between items-center">
+                        <span class="text-xs font-bold text-slate-500 uppercase tracking-wider">Income Stream #${index + 1}</span>
+                        ${index > 0 ? `
+                        <button type="button" onclick="removeIncomeRow(${index})" class="text-red-500 hover:text-red-700 text-xs font-semibold uppercase flex items-center">
+                            <svg class="w-3 h-3 mr-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                            Remove
+                        </button>` : ''}
+                    </div>
+                    <div class="grid grid-cols-1 gap-2">
+                        <div class="grid grid-cols-2 gap-2">
+                            <input type="number" placeholder="Income Amt ($)" value="${inc.amount || ''}" onchange="updateIncomeVal(${index}, 'amount', this.value)" class="w-full px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-base" inputmode="numeric">
+                            <select onchange="updateIncomeVal(${index}, 'frequency', this.value)" class="w-full px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-base">
+                                <option value="Weekly" ${inc.frequency === 'Weekly' ? 'selected' : ''}>Weekly</option>
+                                <option value="Biweekly" ${inc.frequency === 'Biweekly' ? 'selected' : ''}>Biweekly</option>
+                                <option value="Monthly" ${inc.frequency === 'Monthly' ? 'selected' : ''}>Monthly</option>
+                                <option value="Yearly" ${inc.frequency === 'Yearly' ? 'selected' : ''}>Yearly</option>
+                            </select>
+                        </div>
+                        <input type="text" placeholder="Source of Income (e.g. Salary, Pension)" value="${inc.source || ''}" onchange="updateIncomeVal(${index}, 'source', this.value)" class="w-full px-3 py-1.5 border border-gray-300 rounded-lg bg-white text-base">
+                        <div class="flex items-center justify-between text-sm mt-1">
+                            <span class="text-xs font-semibold text-gray-500">Do you have written proof?</span>
+                            <div class="flex space-x-3">
+                                <label class="inline-flex items-center">
+                                    <input type="radio" name="proof_inc_${index}" value="Yes" ${inc.proof === 'Yes' ? 'checked' : ''} onchange="updateIncomeVal(${index}, 'proof', 'Yes')" class="text-sky-600 focus:ring-sky-500 w-4 h-4">
+                                    <span class="ml-1.5">Yes</span>
+                                </label>
+                                <label class="inline-flex items-center">
+                                    <input type="radio" name="proof_inc_${index}" value="No" ${inc.proof === 'No' ? 'checked' : ''} onchange="updateIncomeVal(${index}, 'proof', 'No')" class="text-sky-600 focus:ring-sky-500 w-4 h-4">
+                                    <span class="ml-1.5">No</span>
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function addIncomeRow() {
+            if (incomeEntries.length >= 3) {
+                alert("Maximum of 3 income streams.");
+                return;
+            }
+            incomeEntries.push({ amount: '', frequency: 'Monthly', source: '', proof: 'Yes' });
+            renderIncome();
+            saveProgress();
+        }
+
+        function removeIncomeRow(index) {
+            incomeEntries.splice(index, 1);
+            renderIncome();
+            saveProgress();
+        }
+
+        function updateIncomeVal(index, field, value) {
+            incomeEntries[index][field] = value;
+            saveProgress();
+        }
+
+        // ==================== SIGNATURE DRAWING PAD ====================
+        function initSignaturePad() {
+            const canvas = document.getElementById('sig-canvas');
+            const ctx = canvas.getContext('2d');
+            let drawing = false;
+
+            // Stroke config
+            ctx.strokeStyle = '#1e293b';
+            ctx.lineWidth = 2.5;
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+
+            function getPointerPos(e) {
+                const rect = canvas.getBoundingClientRect();
+                // Handle touches vs mouse
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                
+                // Scale according to actual drawing width vs displayed style width
+                return {
+                    x: (clientX - rect.left) * (canvas.width / rect.width),
+                    y: (clientY - rect.top) * (canvas.height / rect.height)
+                };
+            }
+
+            function startDrawing(e) {
+                drawing = true;
+                const pos = getPointerPos(e);
+                ctx.beginPath();
+                ctx.moveTo(pos.x, pos.y);
+                e.preventDefault();
+            }
+
+            function draw(e) {
+                if (!drawing) return;
+                const pos = getPointerPos(e);
+                ctx.lineTo(pos.x, pos.y);
+                ctx.stroke();
+                e.preventDefault();
+            }
+
+            function stopDrawing() {
+                if (!drawing) return;
+                drawing = false;
+                // Save base64 signature
+                document.getElementById('signature-data').value = canvas.toDataURL();
+                saveProgress();
+            }
+
+            // Mouse Listeners
+            canvas.addEventListener('mousedown', startDrawing);
+            canvas.addEventListener('mousemove', draw);
+            canvas.addEventListener('mouseup', stopDrawing);
+            canvas.addEventListener('mouseleave', stopDrawing);
+
+            // Touch Listeners (iOS / Android support)
+            canvas.addEventListener('touchstart', startDrawing, { passive: false });
+            canvas.addEventListener('touchmove', draw, { passive: false });
+            canvas.addEventListener('touchend', stopDrawing, { passive: false });
+        }
+
+        function clearSignature() {
+            const canvas = document.getElementById('sig-canvas');
+            const ctx = canvas.getContext('2d');
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            document.getElementById('signature-data').value = '';
+            saveProgress();
+        }
+
+        // ==================== AUTOSAVE & STATE STORAGE ====================
+        function setupAutosaveListeners() {
+            // Listen to any keyup/change events on form
+            document.querySelectorAll('#app-form input, #app-form select, #app-form textarea').forEach(element => {
+                element.addEventListener('change', saveProgress);
+                element.addEventListener('keyup', saveProgress);
+            });
+        }
+
+        function saveProgress() {
+            // Read all regular input values
+            const data = {
+                occupants,
+                pets,
+                vehicles,
+                incomeEntries,
+                skip_prev_addresses: document.getElementById('skip_prev_addresses').checked,
+                has_emp2: document.getElementById('has_emp2').checked,
+                // General text fields
+                fields: {}
+            };
+
+            // Grab all inputs from screen except arrays and passwords/sensitive if needed
+            document.querySelectorAll('#app-form input[id], #app-form select[id], #app-form textarea[id]').forEach(input => {
+                if (input.type === 'checkbox') {
+                    data.fields[input.id] = input.checked;
+                } else {
+                    data.fields[input.id] = input.value;
+                }
+            });
+
+            // Grab radio groups
+            const radioGroups = ['r1_up_to_date', 'r2_up_to_date', 'r3_up_to_date', 'q_sued', 'q_bankrupt', 'q_felony', 'q_lease', 'q_lockout', 'q_court', 'q_damaged', 'q_move_in_amt'];
+            radioGroups.forEach(grp => {
+                const checked = document.querySelector(`input[name="${grp}"]:checked`);
+                data.fields[grp] = checked ? checked.value : '';
+            });
+
+            localStorage.setItem('rental_app_autosave', JSON.stringify(data));
+        }
+
+        function loadProgress() {
+            const saved = localStorage.getItem('rental_app_autosave');
+            if (!saved) return;
+
+            try {
+                const data = JSON.parse(saved);
+                
+                // Arrays
+                if (data.occupants) occupants = data.occupants;
+                if (data.pets) pets = data.pets;
+                if (data.vehicles) vehicles = data.vehicles;
+                if (data.incomeEntries) incomeEntries = data.incomeEntries;
+
+                // Toggles
+                if (data.skip_prev_addresses !== undefined) {
+                    document.getElementById('skip_prev_addresses').checked = data.skip_prev_addresses;
+                    togglePreviousAddresses();
+                }
+                if (data.has_emp2 !== undefined) {
+                    document.getElementById('has_emp2').checked = data.has_emp2;
+                    toggleEmployer2();
+                }
+
+                // Restore individual fields
+                if (data.fields) {
+                    Object.keys(data.fields).forEach(id => {
+                        const elem = document.getElementById(id);
+                        if (elem) {
+                            if (elem.type === 'checkbox') {
+                                elem.checked = data.fields[id];
+                            } else {
+                                elem.value = data.fields[id];
+                            }
+                        } else {
+                            // Check for radios
+                            const radio = document.querySelector(`input[name="${id}"][value="${data.fields[id]}"]`);
+                            if (radio) {
+                                radio.checked = true;
+                            }
+                        }
+                    });
+                }
+
+                // If signature exists, try drawing it back on canvas
+                const sigData = document.getElementById('signature-data').value;
+                if (sigData) {
+                    const canvas = document.getElementById('sig-canvas');
+                    const ctx = canvas.getContext('2d');
+                    const img = new Image();
+                    img.onload = function() {
+                        ctx.drawImage(img, 0, 0);
+                    };
+                    img.src = sigData;
+                }
+
+                toggleMaritalDate();
+
+            } catch (e) {
+                console.error("Error loading autosaved progress:", e);
+            }
+        }
+
+        // ==================== EXPORT BACKUP FILE (JSON) ====================
+        function exportBackup() {
+            const data = localStorage.getItem('rental_app_autosave');
+            if (!data) {
+                alert("No application data to export.");
+                return;
+            }
+            
+            const blob = new Blob([data], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            
+            // Format file name with applicant name
+            const firstName = document.getElementById('p_first_name').value || 'Rental';
+            const lastName = document.getElementById('p_last_name').value || 'Application';
+            a.download = `${firstName}_${lastName}_application_backup.json`;
+            a.href = url;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function importBackup(input) {
+            const file = input.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const text = e.target.result;
+                    // Validate JSON
+                    JSON.parse(text);
+                    localStorage.setItem('rental_app_autosave', text);
+                    loadProgress();
+                    renderOccupants();
+                    renderPets();
+                    renderVehicles();
+                    renderIncome();
+                    alert("Application progress restored successfully!");
+                } catch (err) {
+                    alert("Invalid backup file. Please select a valid JSON backup file.");
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        // ==================== SYNC SCREEN DATA TO PRINT MEDIA LAYOUT ====================
+        function syncPrintLayout() {
+            // Helper to fill text
+            function fill(srcId, destId, fallback = '') {
+                const val = document.getElementById(srcId).value;
+                document.getElementById(destId).innerText = val || fallback;
+            }
+
+            // Sync Personal Details
+            fill('p_first_name', 'print_p_first_name');
+            fill('p_middle_name', 'print_p_middle_name', '-');
+            fill('p_last_name', 'print_p_last_name');
+            fill('p_ssn', 'print_p_ssn');
+            fill('p_dob', 'print_p_dob');
+            fill('p_email', 'print_p_email');
+
+            // Marital details formatting
+            const mStatus = document.getElementById('p_marital_status').value;
+            const mDate = document.getElementById('p_marital_date').value;
+            document.getElementById('print_p_marital_status_details').innerText = mStatus + (mDate ? ` (Since ${mDate})` : '');
+
+            // DL details formatting
+            const dlNum = document.getElementById('p_dl_num').value;
+            const dlState = document.getElementById('p_dl_state').value;
+            document.getElementById('print_p_dl_details').innerText = dlNum ? `${dlNum} / ${dlState}` : '';
+
+            // Phone 1 Details
+            const phone1 = document.getElementById('p_phone1').value;
+            const phone1Type = document.getElementById('p_phone1_type').value;
+            document.getElementById('print_p_phone1_details').innerText = phone1 ? `${phone1} (${phone1Type})` : '';
+
+            // Phone 2 Details
+            const phone2 = document.getElementById('p_phone2').value;
+            const phone2Type = document.getElementById('p_phone2_type').value;
+            const phone2Ext = document.getElementById('p_phone2_ext').value;
+            document.getElementById('print_p_phone2_details').innerText = phone2 ? `${phone2} (${phone2Type})` + (phone2Ext ? ` Ext: ${phone2Ext}` : '') : '-';
+
+            // Present Address Details
+            fill('r1_address', 'print_r1_address');
+            fill('r1_city_state_zip', 'print_r1_city_state_zip');
+            fill('r1_length', 'print_r1_length');
+            fill('r1_landlord', 'print_r1_landlord');
+            fill('r1_landlord_phone', 'print_r1_landlord_phone');
+            fill('r1_leaving_reason', 'print_r1_leaving_reason');
+            fill('r1_rent', 'print_r1_rent', '$0');
+            
+            const r1UpToDate = document.querySelector('input[name="r1_up_to_date"]:checked');
+            document.getElementById('print_r1_up_to_date').innerText = r1UpToDate ? r1UpToDate.value : 'No';
+
+            // Previous Addresses (Handle toggle skip)
+            const skipPrev = document.getElementById('skip_prev_addresses').checked;
+            if (skipPrev) {
+                const prevGridCells = ['print_r2_address', 'print_r2_city_state_zip', 'print_r2_length', 'print_r2_landlord', 'print_r2_landlord_phone', 'print_r2_leaving_reason', 'print_r2_rent', 'print_r2_up_to_date', 'print_r3_address', 'print_r3_city_state_zip', 'print_r3_length', 'print_r3_landlord', 'print_r3_landlord_phone', 'print_r3_leaving_reason', 'print_r3_rent', 'print_r3_up_to_date'];
+                prevGridCells.forEach(cell => {
+                    document.getElementById(cell).innerText = 'N/A (Lived at Present Address 5+ years)';
+                });
+            } else {
+                fill('r2_address', 'print_r2_address', '-');
+                fill('r2_city_state_zip', 'print_r2_city_state_zip', '-');
+                fill('r2_length', 'print_r2_length', '-');
+                fill('r2_landlord', 'print_r2_landlord', '-');
+                fill('r2_landlord_phone', 'print_r2_landlord_phone', '-');
+                fill('r2_leaving_reason', 'print_r2_leaving_reason', '-');
+                fill('r2_rent', 'print_r2_rent', '$0');
+                const r2UpToDate = document.querySelector('input[name="r2_up_to_date"]:checked');
+                document.getElementById('print_r2_up_to_date').innerText = r2UpToDate ? r2UpToDate.value : '-';
+
+                fill('r3_address', 'print_r3_address', '-');
+                fill('r3_city_state_zip', 'print_r3_city_state_zip', '-');
+                fill('r3_length', 'print_r3_length', '-');
+                fill('r3_landlord', 'print_r3_landlord', '-');
+                fill('r3_landlord_phone', 'print_r3_landlord_phone', '-');
+                fill('r3_leaving_reason', 'print_r3_leaving_reason', '-');
+                fill('r3_rent', 'print_r3_rent', '$0');
+                const r3UpToDate = document.querySelector('input[name="r3_up_to_date"]:checked');
+                document.getElementById('print_r3_up_to_date').innerText = r3UpToDate ? r3UpToDate.value : '-';
+            }
+
+            // Sync dynamic Occupants
+            const printOccGrid = document.getElementById('print_occupants_grid');
+            // Remove existing print rows (except headers)
+            printOccGrid.querySelectorAll('.dynamic-print').forEach(r => r.remove());
+            
+            // Render 5 cells always to match the layout
+            for(let i = 0; i < 5; i++) {
+                const occ = occupants[i] || { name: '', relationship: '', occupation: '', age: '' };
+                const cells = [
+                    occ.name || '-',
+                    occ.relationship || '-',
+                    occ.occupation || '-',
+                    occ.age || '-'
+                ];
+                cells.forEach(val => {
+                    const d = document.createElement('div');
+                    d.className = 'print-cell val-print dynamic-print';
+                    d.innerText = val;
+                    printOccGrid.appendChild(d);
+                });
+            }
+
+            // Sync dynamic Pets (always render 3 rows)
+            const printPetsGrid = document.getElementById('print_pets_grid');
+            printPetsGrid.querySelectorAll('.dynamic-print').forEach(r => r.remove());
+            for(let i = 0; i < 3; i++) {
+                const pet = pets[i] || { name: '', breed: '', behavior: '', age: '' };
+                const cells = [
+                    pet.name || '-',
+                    pet.breed || '-',
+                    pet.behavior || '-',
+                    pet.age || '-'
+                ];
+                cells.forEach(val => {
+                    const d = document.createElement('div');
+                    d.className = 'print-cell val-print dynamic-print';
+                    d.innerText = val;
+                    printPetsGrid.appendChild(d);
+                });
+            }
+
+            // Sync dynamic Vehicles (always render 2 rows)
+            const printVehGrid = document.getElementById('print_vehicles_grid');
+            printVehGrid.querySelectorAll('.dynamic-print').forEach(r => r.remove());
+            for(let i = 0; i < 2; i++) {
+                const veh = vehicles[i] || { year: '', make: '', model: '', color: '', plate: '', state: '' };
+                const cells = [
+                    veh.year || '-',
+                    veh.make || '-',
+                    veh.model || '-',
+                    veh.color || '-',
+                    veh.plate || '-',
+                    veh.state || '-'
+                ];
+                cells.forEach(val => {
+                    const d = document.createElement('div');
+                    d.className = 'print-cell val-print dynamic-print';
+                    d.innerText = val;
+                    printVehGrid.appendChild(d);
+                });
+            }
+
+            // Employment Sync
+            fill('emp1_name', 'print_emp1_name', '-');
+            fill('emp1_occ', 'print_emp1_occ', '-');
+            fill('emp1_hours', 'print_emp1_hours', '0');
+            fill('emp1_super', 'print_emp1_super', '-');
+            fill('emp1_years', 'print_emp1_years', '-');
+            fill('emp1_address_full', 'print_emp1_address_full', '-');
+            
+            const emp1Phone = document.getElementById('emp1_phone').value;
+            const emp1Ext = document.getElementById('emp1_ext').value;
+            document.getElementById('print_emp1_phone_details').innerText = emp1Phone ? `${emp1Phone}` + (emp1Ext ? ` Ext: ${emp1Ext}` : '') : '-';
+
+            // Employer 2
+            const addEmp2 = document.getElementById('has_emp2').checked;
+            if (addEmp2) {
+                fill('emp2_name', 'print_emp2_name');
+                fill('emp2_occ', 'print_emp2_occ');
+                fill('emp2_hours', 'print_emp2_hours', '0');
+                fill('emp2_super', 'print_emp2_super');
+                fill('emp2_years', 'print_emp2_years');
+                fill('emp2_address_full', 'print_emp2_address_full');
+                const emp2Phone = document.getElementById('emp2_phone').value;
+                const emp2Ext = document.getElementById('emp2_ext').value;
+                document.getElementById('print_emp2_phone_details').innerText = emp2Phone ? `${emp2Phone}` + (emp2Ext ? ` Ext: ${emp2Ext}` : '') : '-';
+            } else {
+                const emp2Cells = ['print_emp2_name', 'print_emp2_occ', 'print_emp2_hours', 'print_emp2_super', 'print_emp2_years', 'print_emp2_phone_details', 'print_emp2_address_full'];
+                emp2Cells.forEach(c => {
+                    document.getElementById(c).innerText = 'N/A';
+                });
+            }
+
+            // Sync dynamic Income (always render 3 rows)
+            const printIncGrid = document.getElementById('print_income_grid');
+            printIncGrid.querySelectorAll('.dynamic-print').forEach(r => r.remove());
+            for(let i = 0; i < 3; i++) {
+                const inc = incomeEntries[i] || { amount: '', frequency: '', source: '', proof: '' };
+                const cells = [
+                    inc.amount ? `$${inc.amount}` : '-',
+                    inc.frequency || '-',
+                    inc.source || '-',
+                    inc.proof || '-'
+                ];
+                cells.forEach(val => {
+                    const d = document.createElement('div');
+                    d.className = 'print-cell val-print dynamic-print';
+                    d.innerText = val;
+                    printIncGrid.appendChild(d);
+                });
+            }
+
+            // Financial & Credit Info Sync
+            fill('f_car_holder', 'print_f_car_holder', '-');
+            fill('f_car_bal', 'print_f_car_bal', '$0');
+            fill('f_car_pmt', 'print_f_car_pmt', '$0');
+            fill('f_car_phone', 'print_f_car_phone', '-');
+
+            fill('f_cc1_co', 'print_f_cc1_co', '-');
+            fill('f_cc1_bal', 'print_f_cc1_bal', '$0');
+            fill('f_cc1_pmt', 'print_f_cc1_pmt', '$0');
+            fill('f_cc1_phone', 'print_f_cc1_phone', '-');
+
+            fill('f_cc2_co', 'print_f_cc2_co', '-');
+            fill('f_cc2_bal', 'print_f_cc2_bal', '$0');
+            fill('f_cc2_pmt', 'print_f_cc2_pmt', '$0');
+            fill('f_cc2_phone', 'print_f_cc2_phone', '-');
+
+            fill('f_cc3_co', 'print_f_cc3_co', '-');
+            fill('f_cc3_bal', 'print_f_cc3_bal', '$0');
+            fill('f_cc3_pmt', 'print_f_cc3_pmt', '$0');
+            fill('f_cc3_phone', 'print_f_cc3_phone', '-');
+
+            fill('f_support_bal', 'print_f_support_bal', '$0');
+            fill('f_support_pmt', 'print_f_support_pmt', '$0');
+            fill('f_support_phone', 'print_f_support_phone', '-');
+
+            fill('f_bank_name', 'print_f_bank_name', '-');
+            fill('f_bank_bal', 'print_f_bank_bal', '$0');
+            fill('f_bank_acct', 'print_f_bank_acct', '-');
+
+            // Emergency Contacts & References
+            fill('ref_em1_name', 'print_ref_em1_name', '-');
+            fill('ref_em1_rel', 'print_ref_em1_rel', '-');
+            fill('ref_em1_phone1', 'print_ref_em1_phone1', '-');
+            fill('ref_em1_phone2', 'print_ref_em1_phone2', '-');
+            fill('ref_em1_addr', 'print_ref_em1_addr', '-');
+
+            fill('ref_em2_name', 'print_ref_em2_name', '-');
+            fill('ref_em2_rel', 'print_ref_em2_rel', '-');
+            fill('ref_em2_phone1', 'print_ref_em2_phone1', '-');
+            fill('ref_em2_phone2', 'print_ref_em2_phone2', '-');
+            fill('ref_em2_addr', 'print_ref_em2_addr', '-');
+
+            fill('ref_pr1_name', 'print_ref_pr1_name', '-');
+            fill('ref_pr1_rel', 'print_ref_pr1_rel', '-');
+            fill('ref_pr1_phone1', 'print_ref_pr1_phone1', '-');
+            fill('ref_pr1_phone2', 'print_ref_pr1_phone2', '-');
+            fill('ref_pr1_addr', 'print_ref_pr1_addr', '-');
+
+            fill('ref_pr2_name', 'print_ref_pr2_name', '-');
+            fill('ref_pr2_rel', 'print_ref_pr2_rel', '-');
+            fill('ref_pr2_phone1', 'print_ref_pr2_phone1', '-');
+            fill('ref_pr2_phone2', 'print_ref_pr2_phone2', '-');
+            fill('ref_pr2_addr', 'print_ref_pr2_addr', '-');
+
+            // Sync Questionnaire Questions
+            const qList = ['q_sued', 'q_bankrupt', 'q_felony', 'q_lease', 'q_lockout', 'q_court', 'q_damaged', 'q_move_in_amt'];
+            qList.forEach(q => {
+                const radio = document.querySelector(`input[name="${q}"]:checked`);
+                document.getElementById(`print_${q}`).innerText = radio ? radio.value.toUpperCase() : '-';
+            });
+
+            // Notes and Date
+            fill('signature_date', 'print_signature_date');
+            fill('app_notes', 'print_app_notes', 'None');
+
+            // Sync Handdrawn Signature Image
+            const signatureImg = document.getElementById('print-signature-img');
+            const sigData = document.getElementById('signature-data').value;
+            if (sigData) {
+                signatureImg.src = sigData;
+                signatureImg.classList.remove('hidden');
+            } else {
+                signatureImg.src = '';
+                signatureImg.classList.add('hidden');
+            }
+        }
+
+        // ==================== SUBMIT APPLICATION TO CENTRAL DATABASE ====================
+        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwYYourScriptIdHere/exec"; // REPLACE WITH YOUR ACTUAL DEPLOYED GOOGLE WEB APP URL
+
+        async function submitApplicationToDatabase() {
+            const btn = document.getElementById('btn-submit-db');
+            const originalText = btn.innerHTML;
+            
+            // Check if we have data to submit
+            const savedData = localStorage.getItem('rental_app_autosave');
+            if (!savedData) {
+                alert("No application data found to submit. Please ensure you have filled out the forms.");
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = `
+                <svg class="animate-spin h-5 w-5 mr-3 text-white inline-block" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.7 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span>Submitting Securely...</span>
+            `;
+
+            // Test if Google Script URL is still default
+            if (GOOGLE_SCRIPT_URL.includes("AKfycbwYYourScriptIdHere")) {
+                alert("Setup Required: You need to deploy your Google Apps Script first and paste your 'Web App URL' into this HTML file before you can submit online.\n\nFor now, you can still save this application as a PDF!");
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+                return;
+            }
+
+            try {
+                const response = await fetch(GOOGLE_SCRIPT_URL, {
+                    method: "POST",
+                    mode: "cors",
+                    headers: {
+                        "Content-Type": "text/plain;charset=utf-8",
+                    },
+                    body: savedData
+                });
+                
+                const result = await response.json();
+                if (result.result === "success") {
+                    alert("🎉 Success! Your application has been securely submitted directly to the landlord's database.\n\nYou can still print or save a PDF copy for your own records if you'd like!");
+                    btn.innerText = "Submitted Successfully!";
+                    btn.className = "w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-4 rounded-lg shadow-md transition-colors flex items-center justify-center space-x-2 text-base pointer-events-none";
+                } else {
+                    throw new Error(result.error || "Unknown server error");
+                }
+            } catch (error) {
+                console.error("Submission failed:", error);
+                alert("There was an issue submitting your application online:\n\n" + error.message + "\n\nDon't worry! Your progress is safe. You can save your completed form as a PDF and email it directly to your landlord instead.");
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
+        }
+    </script>
+</body>
+</html>
