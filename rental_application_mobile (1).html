@@ -2193,8 +2193,8 @@
             }
         }
 
-        // ==================== SUBMIT APPLICATION TO CENTRAL DATABASE ====================
-        const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwYYourScriptIdHere/exec"; // REPLACE WITH YOUR ACTUAL DEPLOYED GOOGLE WEB APP URL
+               // ==================== SUBMIT APPLICATION TO CENTRAL DATABASE (FORMSPREE) ====================
+        const FORMSPREE_URL = "https://formspree.io/f/xqpzznrd"; // <-- REPLACE THIS with your copied Formspree URL!
 
         async function submitApplicationToDatabase() {
             const btn = document.getElementById('btn-submit-db');
@@ -2216,32 +2216,102 @@
                 <span>Submitting Securely...</span>
             `;
 
-            // Test if Google Script URL is still default
-            if (GOOGLE_SCRIPT_URL.includes("AKfycbwYYourScriptIdHere")) {
-                alert("Setup Required: You need to deploy your Google Apps Script first and paste your 'Web App URL' into this HTML file before you can submit online.\n\nFor now, you can still save this application as a PDF!");
+            // Test if URL has been updated from the placeholder
+            if (FORMSPREE_URL.includes("YOUR_FORMSPREE_URL_HERE")) {
+                alert("Setup Required: Please paste your Formspree Target URL into line 2197 of your GitHub index.html file before submitting.\n\nFor now, you can still save this application as a PDF!");
                 btn.disabled = false;
                 btn.innerHTML = originalText;
                 return;
             }
 
             try {
-                const response = await fetch(GOOGLE_SCRIPT_URL, {
-                    method: "POST",
-                    mode: "cors",
-                    headers: {
-                        "Content-Type": "text/plain;charset=utf-8",
-                    },
-                    body: savedData
-                });
+                const data = JSON.parse(savedData);
                 
-                const result = await response.json();
-                if (result.result === "success") {
-                    alert("🎉 Success! Your application has been securely submitted directly to the landlord's database.\n\nYou can still print or save a PDF copy for your own records if you'd like!");
-                    btn.innerText = "Submitted Successfully!";
-                    btn.className = "w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-4 rounded-lg shadow-md transition-colors flex items-center justify-center space-x-2 text-base pointer-events-none";
-                } else {
-                    throw new Error(result.error || "Unknown server error");
+                // Calculate Monthly Income
+                let totalMonthlyIncome = 0;
+                if (data.incomeEntries && Array.isArray(data.incomeEntries)) {
+                    data.incomeEntries.forEach(inc => {
+                        let amt = parseFloat(inc.amount) || 0;
+                        let freq = inc.frequency || "Monthly";
+                        if (freq === "Weekly") {
+                            totalMonthlyIncome += amt * 4.33;
+                        } else if (freq === "Biweekly") {
+                            totalMonthlyIncome += amt * 2.16;
+                        } else if (freq === "Yearly") {
+                            totalMonthlyIncome += amt / 12;
+                        } else {
+                            totalMonthlyIncome += amt;
+                        }
+                    });
                 }
+
+                // Calculate Monthly Debts
+                let totalDebtPmt = 0;
+                const debtFields = ['f_car_pmt', 'f_cc1_pmt', 'f_cc2_pmt', 'f_cc3_pmt', 'f_support_pmt'];
+                debtFields.forEach(f => {
+                    totalDebtPmt += parseFloat(data.fields[f]) || 0;
+                });
+
+                // Count Underwriting Red Flags
+                let redFlags = 0;
+                const yesFlags = ['q_sued', 'q_bankrupt', 'q_felony', 'q_lease', 'q_lockout', 'q_court', 'q_damaged'];
+                yesFlags.forEach(f => {
+                    if (data.fields[f] && data.fields[f].toLowerCase() === 'yes') {
+                        redFlags++;
+                    }
+                });
+                if (data.fields['q_move_in_amt'] && data.fields['q_move_in_amt'].toLowerCase() === 'no') {
+                    redFlags++;
+                }
+
+                // Format arrays as clean readable strings for the database
+                const roommates = data.occupants ? data.occupants.map(o => `${o.name || ''} (${o.relationship || ''}, Age: ${o.age || ''})`).join(" | ") : "None";
+                const petsList = data.pets ? data.pets.map(p => `${p.name || ''} (${p.breed || ''})`).join(" | ") : "None";
+                const vehiclesList = data.vehicles ? data.vehicles.map(v => `${v.year || ''} ${v.make || ''} ${v.model || ''}`).join(" | ") : "None";
+
+                // Map all form data to flat database columns for your dashboard spreadsheet
+                const flatPayload = {
+                    "First Name": data.fields.p_first_name || "",
+                    "Last Name": data.fields.p_last_name || "",
+                    "Email Address": data.fields.p_email || "",
+                    "Phone Number": data.fields.p_phone1 || "",
+                    "Calculated Monthly Income": `$${Math.round(totalMonthlyIncome)}`,
+                    "Calculated Monthly Debts": `$${totalDebtPmt}`,
+                    "Total Underwriting Red Flags": redFlags,
+                    "DOB": data.fields.p_dob || "",
+                    "SSN": data.fields.p_ssn || "",
+                    "Drivers License / State": `${data.fields.p_dl_num || ''} (${data.fields.p_dl_state || ''})`,
+                    "Current Address": `${data.fields.r1_address || ''}, ${data.fields.r1_city_state_zip || ''}`,
+                    "Current Monthly Rent": `$${data.fields.r1_rent || 0}`,
+                    "Current Landlord Name / Phone": `${data.fields.r1_landlord || ''} (${data.fields.r1_landlord_phone || ''})`,
+                    "Employer 1": data.fields.emp1_name || "",
+                    "Position / Occupation": data.fields.emp1_occ || "",
+                    "Roommates List": roommates,
+                    "Pets List": petsList,
+                    "Vehicles List": vehiclesList,
+                    "Emergency Contact 1": `${data.fields.ref_em1_name || ''} (${data.fields.ref_em1_rel || ''}) - ${data.fields.ref_em1_phone1 || ''}`,
+                    "Personal Reference 1": `${data.fields.ref_pr1_name || ''} (${data.fields.ref_pr1_rel || ''}) - ${data.fields.ref_pr1_phone1 || ''}`,
+                    "Signed Date": data.fields.signature_date || "",
+                    "Handdrawn Signature File (Base64)": data.fields.signature_data || "No signature drawn"
+                };
+
+                const response = await fetch(FORMSPREE_URL, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                        "Accept": "application/json"
+                    },
+                    body: JSON.stringify(flatPayload)
+                });
+
+                if (!response.ok) {
+                    throw new Error("Formspree server submission failed.");
+                }
+
+                alert("🎉 Success! Your application has been securely submitted directly to the landlord's database.\n\nYou can still print or save a PDF copy for your own records if you'd like!");
+                btn.innerText = "Submitted Successfully!";
+                btn.className = "w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-4 rounded-lg shadow-md transition-colors flex items-center justify-center space-x-2 text-base pointer-events-none";
+
             } catch (error) {
                 console.error("Submission failed:", error);
                 alert("There was an issue submitting your application online:\n\n" + error.message + "\n\nDon't worry! Your progress is safe. You can save your completed form as a PDF and email it directly to your landlord instead.");
@@ -2249,6 +2319,3 @@
                 btn.innerHTML = originalText;
             }
         }
-    </script>
-</body>
-</html>
