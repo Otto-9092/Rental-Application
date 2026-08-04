@@ -2191,9 +2191,9 @@
                 signatureImg.src = '';
                 signatureImg.classList.add('hidden');
             }
-        }
-        // ==================== SUBMIT APPLICATION TO CENTRAL DATABASE (FORMSPREE) ====================
-        const FORMSPREE_URL = "https://formspree.io/f/xqpzznrd"; // <-- Already pre-configured with your Formspree ID!
+        // ==================== SUBMIT APPLICATION TO CENTRAL DATABASE (SUPABASE) ====================
+        const SUPABASE_URL = "https://ikqvlfsjylzahtwtvwuq.supabase.co/rest/v1/"; // <-- REPLACE with your Supabase Project URL
+        const SUPABASE_ANON_KEY = "ikqvlfsjylzahtwtvwuq"; // <-- REPLACE with your Supabase Anon Key
 
         async function submitApplicationToDatabase() {
             const btn = document.getElementById('btn-submit-db');
@@ -2215,9 +2215,9 @@
                 <span>Submitting Securely...</span>
             `;
 
-            // Test if URL has been updated from the placeholder
-            if (FORMSPREE_URL.includes("YOUR_FORMSPREE_URL_HERE")) {
-                alert("Setup Required: Please paste your Formspree Target URL into line 2197 of your GitHub index.html file before submitting.\n\nFor now, you can still save this application as a PDF!");
+            // Test if Supabase URL has been updated from the placeholder
+            if (SUPABASE_URL.includes("YOUR_SUPABASE_PROJECT_URL")) {
+                alert("Setup Required: You need to set up your Supabase database first and paste your credentials into this HTML file.\n\nFor now, you can still save this application as a PDF!");
                 btn.disabled = false;
                 btn.innerHTML = originalText;
                 return;
@@ -2263,48 +2263,31 @@
                     redFlags++;
                 }
 
-                // Format arrays as clean readable strings for the database
-                const roommates = data.occupants ? data.occupants.map(o => `${o.name || ''} (${o.relationship || ''}, Age: ${o.age || ''})`).join(" | ") : "None";
-                const petsList = data.pets ? data.pets.map(p => `${p.name || ''} (${p.breed || ''})`).join(" | ") : "None";
-                const vehiclesList = data.vehicles ? data.vehicles.map(v => `${v.year || ''} ${v.make || ''} ${v.model || ''}`).join(" | ") : "None";
-
-                // Map all form data to flat database columns for your dashboard spreadsheet
-                const flatPayload = {
-                    "First Name": data.fields.p_first_name || "",
-                    "Last Name": data.fields.p_last_name || "",
-                    "Email Address": data.fields.p_email || "",
-                    "Phone Number": data.fields.p_phone1 || "",
-                    "Calculated Monthly Income": `$${Math.round(totalMonthlyIncome)}`,
-                    "Calculated Monthly Debts": `$${totalDebtPmt}`,
-                    "Total Underwriting Red Flags": redFlags,
-                    "DOB": data.fields.p_dob || "",
-                    "SSN": data.fields.p_ssn || "",
-                    "Drivers License / State": `${data.fields.p_dl_num || ''} (${data.fields.p_dl_state || ''})`,
-                    "Current Address": `${data.fields.r1_address || ''}, ${data.fields.r1_city_state_zip || ''}`,
-                    "Current Monthly Rent": `$${data.fields.r1_rent || 0}`,
-                    "Current Landlord Name / Phone": `${data.fields.r1_landlord || ''} (${data.fields.r1_landlord_phone || ''})`,
-                    "Employer 1": data.fields.emp1_name || "",
-                    "Position / Occupation": data.fields.emp1_occ || "",
-                    "Roommates List": roommates,
-                    "Pets List": petsList,
-                    "Vehicles List": vehiclesList,
-                    "Emergency Contact 1": `${data.fields.ref_em1_name || ''} (${data.fields.ref_em1_rel || ''}) - ${data.fields.ref_em1_phone1 || ''}`,
-                    "Personal Reference 1": `${data.fields.ref_pr1_name || ''} (${data.fields.ref_pr1_rel || ''}) - ${data.fields.ref_pr1_phone1 || ''}`,
-                    "Signed Date": data.fields.signature_date || "",
-                    "Handdrawn Signature File (Base64)": data.fields.signature_data || "No signature drawn"
+                // Format values for SQL columns
+                const payload = {
+                    first_name: data.fields.p_first_name || "",
+                    last_name: data.fields.p_last_name || "",
+                    email: data.fields.p_email || "",
+                    phone: data.fields.p_phone1 || "",
+                    monthly_income: Math.round(totalMonthlyIncome),
+                    debt_payments: totalDebtPmt,
+                    red_flags: redFlags,
+                    raw_payload: data
                 };
 
-                const response = await fetch(FORMSPREE_URL, {
+                const response = await fetch(`${SUPABASE_URL}/rest/v1/applications`, {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json",
-                        "Accept": "application/json"
+                        "apikey": SUPABASE_ANON_KEY,
+                        "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+                        "Prefer": "return=minimal"
                     },
-                    body: JSON.stringify(flatPayload)
+                    body: JSON.stringify(payload)
                 });
 
                 if (!response.ok) {
-                    throw new Error("Formspree server submission failed.");
+                    throw new Error(`Server responded with code ${response.status}: ${response.statusText}`);
                 }
 
                 alert("🎉 Success! Your application has been securely submitted directly to the landlord's database.\n\nYou can still print or save a PDF copy for your own records if you'd like!");
