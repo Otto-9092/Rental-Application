@@ -2219,34 +2219,64 @@
         }
 
         // Generates a PDF Blob from the existing .print-only layout in the DOM.
-        // Temporarily forces it visible (it's normally display:none on screen)
-        // so html2pdf can render it, then restores the original state.
+        //
+        // IMPORTANT: we do NOT toggle display on the live .print-only element.
+        // html2pdf.js/html2canvas has a known issue where it clones the target
+        // element before rendering, and that clone does not always faithfully
+        // pick up display changes applied via inline styles right before the
+        // capture (see html2pdf.js README "Known issues: Node cloning").
+        // That was producing a fully blank PDF for us.
+        //
+        // Instead, we build a completely separate, temporary copy of the print
+        // layout, attach it directly to <body> positioned off-screen (NOT
+        // display:none - html2canvas still won't render display:none content,
+        // even on a plain clone), render THAT, then remove it. This sidesteps
+        // the .print-only / @media screen !important rules entirely, since the
+        // temporary clone never carries the "print-only" class that triggers them.
+        //
         // maskedSSNText: string to show in place of the real SSN (last-4-only)
         async function generateApplicationPDFBlob(maskedSSNText) {
-            const printEl = document.querySelector('.print-only');
-            if (!printEl) throw new Error("Could not find printable layout element (.print-only) in the page.");
+            const sourceEl = document.querySelector('.print-only');
+            if (!sourceEl) throw new Error("Could not find printable layout element (.print-only) in the page.");
 
-            // Remember and temporarily override the SSN display value for this render only
-            const ssnEl = document.getElementById('print_p_ssn');
-            const originalSSNText = ssnEl ? ssnEl.innerText : null;
+            // Deep-clone the print layout so we never touch the live DOM's
+            // .print-only element (which stays governed by the screen/print
+            // media queries as before, for the manual "Save as PDF" button).
+            const clone = sourceEl.cloneNode(true);
+
+            // Remove the class that carries the `display: none !important`
+            // screen rule, then explicitly force this clone visible. Since
+            // this is a brand-new element with no @media screen rule attached
+            // to it (the class is gone), a plain style assignment is enough -
+            // no !important fight, no html2pdf clone-of-a-clone confusion.
+            clone.classList.remove('print-only');
+            clone.style.display = 'block';
+
+            // Mask the SSN on the CLONE only - the live page's signature/SSN
+            // display is never touched by this function.
+            const ssnEl = clone.querySelector('#print_p_ssn');
             if (ssnEl) ssnEl.innerText = maskedSSNText;
+            // IDs must be unique per spec, but since this clone is temporary
+            // and detached immediately after rendering, duplicate IDs during
+            // its brief existence in the DOM do not cause any lasting issues.
 
-            // Force the print-only container visible for rendering.
-            // NOTE: must use setProperty(..., 'important') here, not a plain
-            // style assignment, because the stylesheet has:
-            //   @media screen { .print-only { display: none !important; } }
-            // A plain `printEl.style.display = 'block'` cannot beat an
-            // !important CSS rule, so without this the element stays
-            // invisible to html2canvas and the exported PDF renders blank.
-            const originalDisplay = printEl.style.getPropertyValue('display');
-            const originalPriority = printEl.style.getPropertyPriority('display');
-            printEl.style.setProperty('display', 'block', 'important');
+            // Position the clone so it's part of the live, rendered DOM (needed
+            // for html2canvas to compute real layout/fonts/images) but pushed
+            // far outside the visible viewport so the user never sees a flash
+            // of the print layout appearing on screen.
+            clone.style.position = 'fixed';
+            clone.style.top = '0';
+            clone.style.left = '-99999px';
+            clone.style.width = '8.5in';
+            clone.style.backgroundColor = '#ffffff';
+            clone.style.zIndex = '-1';
 
-            // Give the browser a moment to actually paint the now-visible
-            // layout before html2canvas captures it. Without this, on some
-            // browsers the capture can race ahead of the layout/paint step
-            // and produce a blank or partially-rendered PDF.
+            document.body.appendChild(clone);
+
+            // Give the browser a moment to actually paint the newly-attached
+            // layout before html2canvas captures it.
             await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
             const opt = {
                 margin: 0,
                 filename: 'application.pdf',
@@ -2257,19 +2287,11 @@
             };
 
             try {
-                const pdfBlob = await html2pdf().set(opt).from(printEl).outputPdf('blob');
+                const pdfBlob = await html2pdf().set(opt).from(clone).outputPdf('blob');
                 return pdfBlob;
             } finally {
-                // Always restore original DOM state, even if PDF generation throws.
-                // Restore using setProperty so we correctly put back either an
-                // empty value (falls back to the stylesheet's !important rule)
-                // or whatever inline priority/value was there before.
-                if (originalDisplay) {
-                    printEl.style.setProperty('display', originalDisplay, originalPriority);
-                } else {
-                    printEl.style.removeProperty('display');
-                }
-                if (ssnEl && originalSSNText !== null) ssnEl.innerText = originalSSNText;
+                // Always clean up the temporary clone, even if PDF generation throws.
+                clone.remove();
             }
         }
 
