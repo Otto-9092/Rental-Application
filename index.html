@@ -6,6 +6,12 @@
     <title>Mobile-Friendly Rental Application</title>
     <!-- Tailwind CSS for screen styling -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- PDF generation (renders the print-only layout to a PDF client-side) -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <!-- Supabase JS client (database + storage) -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- EmailJS (sends the landlord a notification email with a link to the stored PDF) -->
+    <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
     <script>
         tailwind.config = {
             theme: {
@@ -2193,8 +2199,142 @@
             }
         }
         // ==================== SUBMIT APPLICATION TO CENTRAL DATABASE (SUPABASE) ====================
-        const SUPABASE_URL = "https://ikqvlfsjylzahtwtvwuq.supabase.co"; // <-- REPLACE with your Supabase Project URL, e.g. https://abcdefghijk.supabase.co
-        const SUPABASE_ANON_KEY = "sb_publishable_ipwJLmhzIo3dk63MkCwYMg_F1g_ynPK"; // <-- REPLACE with your Supabase anon public API key (long JWT string)
+        const SUPABASE_URL = "YOUR_SUPABASE_PROJECT_URL"; // <-- REPLACE with your Supabase Project URL, e.g. https://abcdefghijk.supabase.co
+        const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY"; // <-- REPLACE with your Supabase anon public API key (long JWT string)
+        const SUPABASE_STORAGE_BUCKET = "application-pdfs"; // <-- Must match the bucket name you create in Supabase Storage
+
+        // ==================== EMAILJS CONFIG (sends you a notification with a link to the PDF) ====================
+        const EMAILJS_PUBLIC_KEY = "YOUR_EMAILJS_PUBLIC_KEY";   // <-- From EmailJS Account > General
+        const EMAILJS_SERVICE_ID = "YOUR_EMAILJS_SERVICE_ID";   // <-- From EmailJS Email Services
+        const EMAILJS_TEMPLATE_ID = "YOUR_EMAILJS_TEMPLATE_ID"; // <-- From EmailJS Email Templates
+        const LANDLORD_NOTIFY_EMAIL = "otto907@gmail.com";
+
+        // Masks a SSN string down to just the last 4 digits, e.g. "123-45-6789" -> "XXX-XX-6789"
+        // Falls back gracefully if fewer than 4 digits are present.
+        function maskSSN(ssnRaw) {
+            const digits = (ssnRaw || '').replace(/\D/g, '');
+            if (digits.length === 0) return '-';
+            if (digits.length <= 4) return 'XXX-XX-' + digits.padStart(4, 'X');
+            const last4 = digits.slice(-4);
+            return `XXX-XX-${last4}`;
+        }
+
+        // Generates a PDF Blob from the existing .print-only layout in the DOM.
+        // Temporarily forces it visible (it's normally display:none on screen)
+        // so html2pdf can render it, then restores the original state.
+        // maskedSSNText: string to show in place of the real SSN (last-4-only)
+        async function generateApplicationPDFBlob(maskedSSNText) {
+            const printEl = document.querySelector('.print-only');
+            if (!printEl) throw new Error("Could not find printable layout element (.print-only) in the page.");
+
+            // Remember and temporarily override the SSN display value for this render only
+            const ssnEl = document.getElementById('print_p_ssn');
+            const originalSSNText = ssnEl ? ssnEl.innerText : null;
+            if (ssnEl) ssnEl.innerText = maskedSSNText;
+
+            // Force the print-only container visible for rendering
+            const originalDisplay = printEl.style.display;
+            printEl.style.display = 'block';
+
+            const opt = {
+                margin: 0,
+                filename: 'application.pdf',
+                image: { type: 'jpeg', quality: 0.95 },
+                html2canvas: { scale: 2, useCORS: true },
+                jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' },
+                pagebreak: { mode: ['css', 'legacy'] }
+            };
+
+            try {
+                const pdfBlob = await html2pdf().set(opt).from(printEl).outputPdf('blob');
+                return pdfBlob;
+            } finally {
+                // Always restore original DOM state, even if PDF generation throws
+                printEl.style.display = originalDisplay;
+                if (ssnEl && originalSSNText !== null) ssnEl.innerText = originalSSNText;
+            }
+        }
+
+        // Uploads the PDF Blob to Supabase Storage (PRIVATE bucket) and returns a
+        // temporary signed URL that expires after SIGNED_URL_EXPIRY_SECONDS.
+        // The bucket itself stays private the whole time - nobody can read any
+        // file without either (a) this specific signed link before it expires,
+        // or (b) your own logged-in Supabase dashboard access.
+        const SIGNED_URL_EXPIRY_SECONDS = 7 * 24 * 60 * 60; // 7 days
+
+        async function uploadPDFToSupabaseStorage(pdfBlob, applicantNameSlug) {
+            const timestamp = Date.now();
+            const filePath = `${applicantNameSlug}-${timestamp}.pdf`;
+
+            // 1. Upload the file into the private bucket (same as before)
+            const uploadResponse = await fetch(
+                `${SUPABASE_URL}/storage/v1/object/${SUPABASE_STORAGE_BUCKET}/${filePath}`,
+                {
+                    method: "POST",
+                    headers: {
+                        "apikey": SUPABASE_ANON_KEY,
+                        "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+                        "Content-Type": "application/pdf"
+                    },
+                    body: pdfBlob
+                }
+            );
+
+            if (!uploadResponse.ok) {
+                const errText = await uploadResponse.text();
+                throw new Error(`PDF upload failed (${uploadResponse.status}): ${errText}`);
+            }
+
+            // 2. Ask Supabase for a temporary signed link to that private file.
+            //    This is the step that replaces the old "permanent public URL".
+            const signResponse = await fetch(
+                `${SUPABASE_URL}/storage/v1/object/sign/${SUPABASE_STORAGE_BUCKET}/${filePath}`,
+                {
+                    method: "POST",
+                    headers: {
+                        "apikey": SUPABASE_ANON_KEY,
+                        "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({ expiresIn: SIGNED_URL_EXPIRY_SECONDS })
+                }
+            );
+
+            if (!signResponse.ok) {
+                const errText = await signResponse.text();
+                throw new Error(`Could not create signed PDF link (${signResponse.status}): ${errText}`);
+            }
+
+            const signData = await signResponse.json();
+            // signData.signedURL is a path like "/object/sign/<bucket>/<file>?token=..."
+            // - prepend the project's storage host to make it a full clickable URL.
+            const signedUrl = `${SUPABASE_URL}/storage/v1${signData.signedURL}`;
+            return signedUrl;
+        }
+
+        // Sends the landlord an email notification (via EmailJS) containing a link to the PDF.
+        // Does NOT block/fail the overall submission if email sending fails - it's a convenience
+        // notification, not the system of record (Supabase already has the full data).
+        async function sendLandlordNotificationEmail(applicantName, pdfUrl) {
+            if (EMAILJS_PUBLIC_KEY.includes("YOUR_EMAILJS") ||
+                EMAILJS_SERVICE_ID.includes("YOUR_EMAILJS") ||
+                EMAILJS_TEMPLATE_ID.includes("YOUR_EMAILJS")) {
+                console.warn("EmailJS not configured yet - skipping email notification. PDF was still saved to Supabase Storage.");
+                return;
+            }
+
+            try {
+                emailjs.init({ publicKey: EMAILJS_PUBLIC_KEY });
+                await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
+                    to_email: LANDLORD_NOTIFY_EMAIL,
+                    applicant_name: applicantName,
+                    pdf_link: pdfUrl,
+                    submitted_at: new Date().toLocaleString()
+                });
+            } catch (emailErr) {
+                console.error("Email notification failed (non-fatal):", emailErr);
+            }
+        }
 
         async function submitApplicationToDatabase() {
             const btn = document.getElementById('btn-submit-db');
@@ -2291,7 +2431,28 @@
                     throw new Error(`Server responded with code ${response.status}: ${response.statusText}`);
                 }
 
-                alert("🎉 Success! Your application has been securely submitted directly to the landlord's database.\n\nYou can still print or save a PDF copy for your own records if you'd like!");
+                // ---- PDF generation + upload + email notification ----
+                // This runs AFTER the database write succeeds. If any step here fails,
+                // we do not want to tell the applicant their submission failed, since
+                // their data is already safely in Supabase - so these are wrapped in
+                // their own try/catch and only logged, never re-thrown.
+                try {
+                    syncPrintLayout(); // make sure the print layout reflects latest field values
+
+                    const maskedSSN = maskSSN(data.fields.p_ssn);
+                    const pdfBlob = await generateApplicationPDFBlob(maskedSSN);
+
+                    const applicantName = `${payload.first_name || 'applicant'}_${payload.last_name || ''}`
+                        .trim().replace(/[^a-z0-9_-]/gi, '_');
+                    const pdfUrl = await uploadPDFToSupabaseStorage(pdfBlob, applicantName || 'applicant');
+
+                    const fullName = `${payload.first_name} ${payload.last_name}`.trim() || 'New Applicant';
+                    await sendLandlordNotificationEmail(fullName, pdfUrl);
+                } catch (pdfErr) {
+                    console.error("PDF/email notification step failed (application data was still saved successfully):", pdfErr);
+                }
+
+                alert("\ud83c\udf89 Success! Your application has been securely submitted directly to the landlord's database.\n\nYou can still print or save a PDF copy for your own records if you'd like!");
                 btn.innerText = "Submitted Successfully!";
                 btn.className = "w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3 px-4 rounded-lg shadow-md transition-colors flex items-center justify-center space-x-2 text-base pointer-events-none";
 
