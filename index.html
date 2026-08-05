@@ -2231,10 +2231,22 @@
             const originalSSNText = ssnEl ? ssnEl.innerText : null;
             if (ssnEl) ssnEl.innerText = maskedSSNText;
 
-            // Force the print-only container visible for rendering
-            const originalDisplay = printEl.style.display;
-            printEl.style.display = 'block';
+            // Force the print-only container visible for rendering.
+            // NOTE: must use setProperty(..., 'important') here, not a plain
+            // style assignment, because the stylesheet has:
+            //   @media screen { .print-only { display: none !important; } }
+            // A plain `printEl.style.display = 'block'` cannot beat an
+            // !important CSS rule, so without this the element stays
+            // invisible to html2canvas and the exported PDF renders blank.
+            const originalDisplay = printEl.style.getPropertyValue('display');
+            const originalPriority = printEl.style.getPropertyPriority('display');
+            printEl.style.setProperty('display', 'block', 'important');
 
+            // Give the browser a moment to actually paint the now-visible
+            // layout before html2canvas captures it. Without this, on some
+            // browsers the capture can race ahead of the layout/paint step
+            // and produce a blank or partially-rendered PDF.
+            await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
             const opt = {
                 margin: 0,
                 filename: 'application.pdf',
@@ -2248,8 +2260,15 @@
                 const pdfBlob = await html2pdf().set(opt).from(printEl).outputPdf('blob');
                 return pdfBlob;
             } finally {
-                // Always restore original DOM state, even if PDF generation throws
-                printEl.style.display = originalDisplay;
+                // Always restore original DOM state, even if PDF generation throws.
+                // Restore using setProperty so we correctly put back either an
+                // empty value (falls back to the stylesheet's !important rule)
+                // or whatever inline priority/value was there before.
+                if (originalDisplay) {
+                    printEl.style.setProperty('display', originalDisplay, originalPriority);
+                } else {
+                    printEl.style.removeProperty('display');
+                }
                 if (ssnEl && originalSSNText !== null) ssnEl.innerText = originalSSNText;
             }
         }
