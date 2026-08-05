@@ -920,7 +920,6 @@
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
                             <span>Save as PDF / Print Form</span>
                         </button>
-                        </button>
                         
                         <div class="grid grid-cols-2 gap-2">
                             <button type="button" onclick="exportBackup()" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-semibold py-2 px-3 rounded-lg text-xs border border-gray-200 flex items-center justify-center space-x-1">
@@ -2199,14 +2198,14 @@
             }
         }
         // ==================== SUBMIT APPLICATION TO CENTRAL DATABASE (SUPABASE) ====================
-        const SUPABASE_URL = "https://ikqvlfsjylzahtwtvwuq.supabase.co"; // <-- REPLACE with your Supabase Project URL, e.g. https://abcdefghijk.supabase.co
-        const SUPABASE_ANON_KEY = "sb_publishable_ipwJLmhzIo3dk63MkCwYMg_F1g_ynPK"; // <-- REPLACE with your Supabase anon public API key (long JWT string)
+        const SUPABASE_URL = "https://ikqvlfsjylzahtwtvwuq.supabase.co"; // Your Supabase Project URL
+        const SUPABASE_ANON_KEY = "sb_publishable_ipwJLmhzIo3dk63MkCwYMg_F1g_ynPK"; // Your Supabase anon public API key
         const SUPABASE_STORAGE_BUCKET = "application-pdfs"; // <-- Must match the bucket name you create in Supabase Storage
 
         // ==================== EMAILJS CONFIG (sends you a notification with a link to the PDF) ====================
-        const EMAILJS_PUBLIC_KEY = "9T-Jf0MrWW8CTWuoJ";   // <-- From EmailJS Account > General
-        const EMAILJS_SERVICE_ID = "service_agi8iyo";   // <-- From EmailJS Email Services
-        const EMAILJS_TEMPLATE_ID = "template_ide286j"; // <-- From EmailJS Email Templates
+        const EMAILJS_PUBLIC_KEY = "9T-Jf0MrWW8CTWuoJ";   // Your EmailJS Public Key
+        const EMAILJS_SERVICE_ID = "service_agi8iyo";   // Your EmailJS Service ID
+        const EMAILJS_TEMPLATE_ID = "template_ide286j"; // Your EmailJS Template ID
         const LANDLORD_NOTIFY_EMAIL = "otto907@gmail.com";
 
         // Masks a SSN string down to just the last 4 digits, e.g. "123-45-6789" -> "XXX-XX-6789"
