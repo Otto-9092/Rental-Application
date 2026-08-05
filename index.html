@@ -2191,9 +2191,10 @@
                 signatureImg.src = '';
                 signatureImg.classList.add('hidden');
             }
+        }
         // ==================== SUBMIT APPLICATION TO CENTRAL DATABASE (SUPABASE) ====================
-        const SUPABASE_URL = "https://ikqvlfsjylzahtwtvwuq.supabase.co/rest/v1/"; // <-- REPLACE with your Supabase Project URL
-        const SUPABASE_ANON_KEY = "ikqvlfsjylzahtwtvwuq"; // <-- REPLACE with your Supabase Anon Key
+        const SUPABASE_URL = "YOUR_SUPABASE_PROJECT_URL"; // <-- REPLACE with your Supabase Project URL, e.g. https://abcdefghijk.supabase.co
+        const SUPABASE_ANON_KEY = "YOUR_SUPABASE_ANON_KEY"; // <-- REPLACE with your Supabase anon public API key (long JWT string)
 
         async function submitApplicationToDatabase() {
             const btn = document.getElementById('btn-submit-db');
